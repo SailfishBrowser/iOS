@@ -1,0 +1,1 @@
+{"script.example.com":{"allowsJavaScript":false,"blocksTrackers":true},"tracker.example.com":{"allowsJavaScript":true,"blocksTrackers":false},"strict.example.com":{"allowsJavaScript":false,"blocksTrackers":false}}

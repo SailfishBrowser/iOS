@@ -1,0 +1,41 @@
+# Runs the unit tests on an iPhone 17 Pro simulator on every push to main and every pull request. It uses no secrets,
+# so fork pull requests are safe. The app has no Swift packages, so there is nothing for a SwiftPM cache to hold.
+name: Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    if: github.repository == 'SailfishBrowser/iOS'
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.5.app
+
+      - uses: actions/cache@v6
+        with:
+          path: iOS/.build/DerivedData
+          key: deriveddata-test-xcode-26.5-${{ hashFiles('iOS/project.yml') }}
+
+      - name: Install XcodeGen
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip
+          echo "4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
+
+      - name: Test
+        run: iOS/scripts/test.sh

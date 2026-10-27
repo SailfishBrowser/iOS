@@ -1,0 +1,56 @@
+Sailfish acknowledgements
+Shown in Settings, Acknowledgements.
+
+FILTER LISTS
+
+Sailfish blocks ads, trackers and cookie banners with rules converted from these lists. The conversion to
+WebKit's content rule format and to per-domain page rules uses AdGuard SafariConverterLib, a build tool that is not
+part of the app.
+
+EasyList
+  The EasyList authors, https://easylist.to/
+  Used under Creative Commons Attribution-ShareAlike 3.0, https://creativecommons.org/licenses/by-sa/3.0/
+  (EasyList is dual licensed under GPL v3 or CC BY-SA 3.0, https://easylist.to/pages/licence.html)
+  Changes: converted to WebKit content rules and to per-domain page rules.
+
+EasyPrivacy
+  The EasyList authors, https://easylist.to/
+  Used under Creative Commons Attribution-ShareAlike 3.0, https://creativecommons.org/licenses/by-sa/3.0/
+  (dual licensed as EasyList)
+  Changes: converted to WebKit content rules and to per-domain page rules.
+
+EasyList Cookie List
+  The EasyList authors, https://secure.fanboy.co.nz/fanboy-cookiemonster.txt
+  Creative Commons Attribution 3.0, https://creativecommons.org/licenses/by/3.0/
+  Changes: converted to WebKit content rules and to per-domain page rules.
+
+Fanboy's Annoyance List
+  Fanboy and the EasyList authors, https://secure.fanboy.co.nz/fanboy-annoyance.txt
+  Creative Commons Attribution 3.0, https://creativecommons.org/licenses/by/3.0/
+  Changes: the lines it shares with the EasyList Cookie List are removed, and the rest is converted to WebKit
+  content rules and to per-domain page rules.
+
+Files derived from EasyList or EasyPrivacy are themselves licensed under Creative Commons Attribution-ShareAlike
+3.0: Blocklists/easylist.json, Blocklists/easyprivacy.json, Blocklists/tracker-domains.txt, PageShield/ads.json and
+PageShield/trackers.json. They ship as plain files in the app bundle. This licence covers that rule data only, not
+the app's code.
+
+YOUTUBE RULES
+
+Four rules for youtube.com, youtubekids.com and youtube-nocookie.com were written for Sailfish from the public
+field names of YouTube's player response (adPlacements, playerAds, adSlots). They go in PageShield/ads.json.
+
+SCRIPTLETS
+
+The scripts that page rules call are written for Sailfish and are Sailfish's own code:
+set-constant, abort-on-property-read, abort-current-inline-script, json-prune, remove-attr, remove-class,
+prevent-addEventListener and prevent-setTimeout. They follow the argument conventions filter lists use for
+scriptlets of these names. No code from AdGuard Scriptlets, uBlock Origin or Brave is included. The procedural
+selector engine and the cookie wall unlock are also Sailfish's own code.
+
+READER MODE
+
+Reader Mode uses Readability.js 0.6.0 by Mozilla, based on Arc90's readability.
+  Copyright (c) 2010 Arc90 Inc
+  Apache License 2.0, http://www.apache.org/licenses/LICENSE-2.0
+  The licence text follows below.

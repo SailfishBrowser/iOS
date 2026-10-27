@@ -1,0 +1,30 @@
+:root {
+  color-scheme: light dark;
+}
+
+body {
+  margin: 0;
+  font: {{bodyFont}};
+  -webkit-text-size-adjust: none;
+  overflow-wrap: break-word;
+}
+
+article {
+  max-width: {{measure}};
+  margin: 0 auto;
+  padding: 0 {{inset}};
+}
+
+h1 {
+  font: {{titleFont}};
+}
+
+img, video, figure {
+  max-width: 100%;
+  height: auto;
+}
+
+pre, table {
+  display: block;
+  overflow-x: auto;
+}

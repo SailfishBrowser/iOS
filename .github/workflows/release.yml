@@ -1,0 +1,88 @@
+# Archives Sail with the App Store Connect API key, uploads it to TestFlight, and publishes release v<version> of
+# this repository with the notes and a changelog since the previous release. The build is installed from TestFlight,
+# so the release has no files. The API key signs through automatic signing, which creates or downloads the
+# distribution certificate and profile. The build number is one more than App Store Connect's highest
+# (iOS/scripts/next-build.swift).
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version, e.g. 1.2.0
+        required: true
+      notes:
+        description: Release notes, shown above the changelog
+        required: false
+      default_browser:
+        description: Sign with the default browser entitlement (Apple must have granted it to the App ID)
+        type: boolean
+        default: false
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    if: github.repository == 'SailfishBrowser/iOS'
+    runs-on: macos-26
+    environment: release
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      VERSION: ${{ inputs.version }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode_26.5.app
+
+      - name: Check the version
+        run: |
+          echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+(\.[0-9]+)?$' || { echo "bad version $VERSION"; exit 1; }
+          if gh release view "v$VERSION" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then echo "release v$VERSION exists"; exit 1; fi
+
+      - name: Install XcodeGen
+        run: |
+          curl -fsSL -o "$RUNNER_TEMP/xcodegen.zip" https://github.com/yonaskolb/XcodeGen/releases/download/2.46.0/xcodegen.zip
+          echo "4d9e34b62172d645eed6457cac13fc222569974098ef4ee9c3368bedf0196806  $RUNNER_TEMP/xcodegen.zip" | shasum -a 256 -c -
+          unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
+          echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
+
+      - name: Write the API key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          echo "$ASC_KEY_P8" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+          echo "ASC_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+
+      - name: Pick the build number
+        run: |
+          BUNDLE_ID="$(awk '/PRODUCT_BUNDLE_IDENTIFIER:/ { print $2; exit }' iOS/project.yml)"
+          BUILD="$(swift iOS/scripts/next-build.swift "$BUNDLE_ID")"
+          echo "BUILD=$BUILD" >> "$GITHUB_ENV"
+
+      - name: Archive, check and upload to TestFlight
+        env:
+          DEVELOPMENT_TEAM: ${{ secrets.APPLE_TEAM_ID }}
+          SAIL_DEFAULT_BROWSER: ${{ inputs.default_browser && 'YES' || 'NO' }}
+        run: CURRENT_PROJECT_VERSION="$BUILD" MARKETING_VERSION="$VERSION" iOS/scripts/archive.sh
+
+      - name: Publish the release
+        env:
+          NOTES: ${{ inputs.notes }}
+        run: |
+          BODY="Install via TestFlight: https://testflight.apple.com/join/R7BcHnst. This is build $BUILD; iPhone builds install from TestFlight, so this release has no files."
+          [ -z "$NOTES" ] || BODY="$NOTES"$'\n\n'"$BODY"
+          gh release create "v$VERSION" -R "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+            --title "Sail $VERSION ($BUILD)" --notes "$BODY" --generate-notes --latest
+
+      - name: Clean up
+        if: always()
+        run: rm -f "$RUNNER_TEMP/AuthKey.p8"

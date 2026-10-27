@@ -1,0 +1,82 @@
+name: SailBrowser
+options:
+  deploymentTarget:
+    iOS: "26.0"
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    SWIFT_DEFAULT_ACTOR_ISOLATION: MainActor
+    SWIFT_APPROACHABLE_CONCURRENCY: YES
+    GENERATE_INFOPLIST_FILE: YES
+    CODE_SIGN_STYLE: Automatic
+targets:
+  SailBrowser:
+    type: application
+    platform: iOS
+    sources: [SailBrowser]
+    info:
+      path: SailBrowser/Info.plist
+      properties:
+        CADisableMinimumFrameDurationOnPhone: true
+        UIBackgroundModes: [audio]
+        UILaunchScreen:
+          UIColorName: LaunchBackground
+        CFBundleURLTypes:
+          - CFBundleURLName: $(PRODUCT_BUNDLE_IDENTIFIER).web
+            CFBundleTypeRole: Viewer
+            CFBundleURLSchemes: [http, https]
+        NSAppTransportSecurity:
+          NSAllowsArbitraryLoadsInWebContent: true
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        SailfishDefaultBrowser: $(SAIL_DEFAULT_BROWSER)
+        CFBundleName: Sailfish
+        CFBundleDisplayName: Sail
+        CFBundleShortVersionString: $(MARKETING_VERSION)
+        CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        ITSAppUsesNonExemptEncryption: false
+        LSApplicationCategoryType: public.app-category.utilities
+        LSRequiresIPhoneOS: true
+        UISupportedInterfaceOrientations: [UIInterfaceOrientationPortrait]
+        NSCameraUsageDescription: Websites can ask to use your camera.
+        NSMicrophoneUsageDescription: Websites can ask to use your microphone.
+        NSLocationWhenInUseUsageDescription: Websites can ask to use your location.
+        NSPhotoLibraryAddUsageDescription: Images you save from websites are added to your photo library.
+        NSLocalNetworkUsageDescription: Websites on your local network can be opened in the browser.
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.haladir.arcmobile
+        # Xcode's generated Info.plist forces CFBundleName to PRODUCT_NAME, so this target ships the plist above as written.
+        GENERATE_INFOPLIST_FILE: NO
+        # YES signs with SailBrowser.entitlements (the default browser entitlement). Leave NO until Apple grants it
+        # to the team and the App ID has the Default Browser capability, or signing fails.
+        SAIL_DEFAULT_BROWSER: NO
+        SAIL_ENTITLEMENTS_YES: SailBrowser/SailBrowser.entitlements
+        CODE_SIGN_ENTITLEMENTS: $(SAIL_ENTITLEMENTS_$(SAIL_DEFAULT_BROWSER))
+        TARGETED_DEVICE_FAMILY: "1"
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+  SailBrowserTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: SailBrowserTests
+        excludes: ["**/*.md"]
+    dependencies:
+      - target: SailBrowser
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.haladir.sailbrowser.tests
+        TARGETED_DEVICE_FAMILY: "1"
+schemes:
+  SailBrowser:
+    build:
+      targets:
+        SailBrowser: all
+    run:
+      config: Debug
+    test:
+      config: Debug
+      targets: [SailBrowserTests]

@@ -72,10 +72,26 @@ scripts/test.sh
 
 ## Layout
 
-- `iOS/SailBrowser/`: the app, in Swift and SwiftUI, with WebKit pages and content blocking rules.
-- `iOS/SailBrowserTests/`: its tests, in Swift Testing.
-- `iOS/scripts/`: build, test, release and blocklist scripts.
-- `brand/`: the logo artwork.
+```
+.
+├── iOS/
+│   ├── project.yml            XcodeGen project (generates SailBrowser.xcodeproj)
+│   ├── SailBrowser/           the app, in Swift and SwiftUI
+│   │   ├── App/               launch, scenes and app-wide setup
+│   │   ├── UI/                screens: browser, tab switcher, search, menu, settings, archive, downloads
+│   │   ├── Web/               WebKit tabs, content blocking and the page shield
+│   │   ├── Logic/             gestures, layout and archiving rules
+│   │   ├── Models/            tabs, history, settings and saved state
+│   │   ├── Stores/            browser, history, download and site-settings state
+│   │   ├── Persistence/       saving sessions, snapshots and favicons to disk
+│   │   ├── Search/            search suggestions
+│   │   ├── Haptics/           haptic feedback
+│   │   └── Resources/         assets, blocklists, page shield rules, Reader and Translate scripts
+│   ├── SailBrowserTests/      tests, in Swift Testing, with saved-state fixtures
+│   └── scripts/               build, test, release and blocklist scripts
+├── brand/                     logo artwork
+└── .github/workflows/         Test and Release workflows
+```
 
 ## Releases
 

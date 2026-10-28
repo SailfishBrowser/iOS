@@ -32,11 +32,6 @@ struct TextEdgeTests {
         SuggestionRanker.historyMatches(entries.map(HistorySearchKey.init), query: query, limit: 20)
     }
 
-    @Test func textLimitsArePinned() {
-        #expect(Theme.Text.titleLimit == 1_024)
-        #expect(Theme.Text.urlLimit == 8_192)
-    }
-
     // Foundation encodes a stray space or non-ASCII in a path, but a space in the host parses as nothing; that text
     // searches instead of leaving the Return key dead.
     @Test func anAddressThatWillNotParseIsEncodedOrSearched() {

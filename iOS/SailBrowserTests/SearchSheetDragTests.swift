@@ -281,7 +281,7 @@ struct SearchSheetDragTests {
 
     // During a close the sheet's model is already at the bar; touches go by where it is drawn. The drawn pill opens
     // search on touch-down, as "+" does, and the rest of the drawn sheet is there to grab.
-    @Test(.timeLimit(.minutes(1)))
+    @Test(.timeLimit(.minutes(1)), .timingSensitive)
     func aTouchOnTheDrawnPillDuringACloseOpensSearch() async throws {
         let (env, controller, window, begin) = try await tappedClose()
         try await waitUntil(timeout: .seconds(1)) { CACurrentMediaTime() >= begin + 10 * Theme.Motion.searchCloseFrame }

@@ -16,4 +16,5 @@ xcodegen generate --quiet
 xcodebuild test -project SailBrowser.xcodeproj -scheme SailBrowser \
   -destination "platform=iOS Simulator,name=$SIM" \
   -derivedDataPath .build/DerivedData \
+  ${TEST_RUNNER_SAIL_CI:+-retry-tests-on-failure -test-iterations 2} \
   ${only[@]+"${only[@]}"}

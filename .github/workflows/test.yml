@@ -37,7 +37,8 @@ jobs:
           unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
 
-      # xcodebuild hands TEST_RUNNER_ variables to the tests without the prefix; SAIL_CI skips the .timingSensitive ones.
+      # xcodebuild hands TEST_RUNNER_ variables to the tests without the prefix; SAIL_CI skips the .timingSensitive ones,
+      # and test.sh retries a failed test once when it is set.
       - name: Test
         env:
           TEST_RUNNER_SAIL_CI: 1

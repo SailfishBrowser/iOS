@@ -210,7 +210,7 @@ struct BarSlideHitTests {
         #expect(isBar(hit, bar))
     }
 
-    @Test func aTapAboveTheDrawnBarDuringAShowIsNotTheBar() async throws {
+    @Test(.timingSensitive) func aTapAboveTheDrawnBarDuringAShowIsNotTheBar() async throws {
         let (bar, window) = placed(hidden: true)
         defer { window.isHidden = true }
         bar.slide(hidden: false)

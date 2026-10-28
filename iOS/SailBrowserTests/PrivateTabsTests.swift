@@ -425,7 +425,7 @@ struct PrivateTabsTests {
     }
 
     // With Auto-Open Keyboard off the sheet opens unfocused; the eyes flip the mode and leave the field where it is.
-    @Test func theEyesFlipTheModeWithoutFocusingOrLiftingTheField() async throws {
+    @Test(.timingSensitive) func theEyesFlipTheModeWithoutFocusingOrLiftingTheField() async throws {
         let scene = UIApplication.shared.connectedScenes.first as! UIWindowScene
         let window = UIWindow(windowScene: scene)
         defer { window.isHidden = true }

@@ -112,7 +112,7 @@ struct SearchSheetDragTests {
 
     // A grab inside the open's first 50 ms takes the sheet where it is drawn, with no settle first, and is recorded as a
     // grab during the open. The keyboard stays with the field.
-    @Test(.timeLimit(.minutes(1)))
+    @Test(.timeLimit(.minutes(1)), .timingSensitive)
     func aGrabEarlyInTheOpenTakesTheDrawnSheetAndKeepsTheKeyboard() async throws {
         let (controller, window) = risen()
         CATransaction.flush()

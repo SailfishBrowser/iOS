@@ -116,7 +116,7 @@ struct AppEnvironmentTests {
     // WebKit's tile views keep the trait collection they last had, which carries SwiftUI's environment, for as long as
     // their web view lives, so the pages go first. The first page shown in a hosted window also leaves a process-wide
     // UIKit view holding that window's traits, so a first environment takes that hold before the one under test.
-    @Test(.timeLimit(.minutes(1)))
+    @Test(.timeLimit(.minutes(1)), .timingSensitive)
     func aHostedEnvironmentIsFreedWithItsWindowOnceItsPagesAreGone() async throws {
         _ = try await showAPageThenLetGo()
         let freed = try await showAPageThenLetGo()

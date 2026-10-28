@@ -44,7 +44,7 @@ struct OfflineRestoreTests {
         return controller
     }
 
-    @Test func anEvictedTabThatOnlyFailedComesBackByLoadingItsURL() async throws {
+    @Test(.timingSensitive) func anEvictedTabThatOnlyFailedComesBackByLoadingItsURL() async throws {
         let sessions = SessionStore(directories: .temporary())
         let (pool, handler) = makePool(sessions: sessions)
         let tab = makeTab(a)

@@ -246,7 +246,7 @@ struct DeckDriversTests {
     }
 
     // The throw records at its release, so the deck watch only returns once the card flies off after it.
-    @Test(.timeLimit(.minutes(1))) func throwDriverWatchesTheDeckFromItsRelease() async throws {
+    @Test(.timeLimit(.minutes(1)), .timingSensitive) func throwDriverWatchesTheDeckFromItsRelease() async throws {
         let scene = UIApplication.shared.connectedScenes.first as! UIWindowScene
         let window = UIWindow(windowScene: scene)
         let sink = RecordingHapticSink(start: .now)

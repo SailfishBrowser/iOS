@@ -56,7 +56,7 @@ struct SearchSheetResponderTests {
 
     // A close inside the open's first frame finds the sheet drawn at the bar, with nothing left to travel; it still runs
     // its top spring, from which every step of the close counts.
-    @Test(.timeLimit(.minutes(1)))
+    @Test(.timeLimit(.minutes(1)), .timingSensitive)
     func aCloseInsideTheOpensFirstFrameStillRunsItsTopSpring() async throws {
         let (controller, window) = try await closed()
         controller.setActive(true, submitting: false)

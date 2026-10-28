@@ -742,7 +742,7 @@ struct BarSwipeHostTests {
         #expect(hosted.pager.driver.position == 2)
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test(.timeLimit(.minutes(1)), .timingSensitive)
     func aTouchMidSpringHoldsTheCardsWhereTheyAreDrawn() async throws {
         let sink = ClockedSink()
         let hosted = try await hosted(tabs: 3, active: 1, sink: sink)

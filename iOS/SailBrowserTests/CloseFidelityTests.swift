@@ -51,7 +51,7 @@ struct CloseFidelityTests {
         }
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test(.timeLimit(.minutes(1)), .timingSensitive)
     func theTappedCloseFollowsTheMeasuredTopAndCollapse() async throws {
         let (controller, window) = try await opened()
         let startTop = controller.container.layer.presentation()!.frame.minY

@@ -51,7 +51,7 @@ struct ReaderExtractorTests {
     }
 
     // The extraction works on a clone in its own world: the page keeps every node and never sees the library.
-    @Test func extractionLeavesTheLivePageUntouched() async throws {
+    @Test(.timingSensitive) func extractionLeavesTheLivePageUntouched() async throws {
         let webView = try await loadedFixture("readability-001")
         let count = "return document.getElementsByTagName('*').length"
         let before = try #require(try await webView.callAsyncJavaScript(count, contentWorld: .page) as? Int)

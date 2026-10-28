@@ -111,7 +111,7 @@ struct SearchSheetCatchTests {
     }
 
     // An open during a close rises from where the close has drawn the sheet; its rows are caught where drawn too.
-    @Test(.timeLimit(.minutes(1)))
+    @Test(.timeLimit(.minutes(1)), .timingSensitive)
     func aTouchOnTheDrawnSecondRowMidReopenLandsOnThatRow() async throws {
         let (controller, window, rest) = try await knowingTheKeyboard()
         let barTop = window.bounds.height - Theme.Metrics.barTotalHeight

@@ -522,7 +522,7 @@ struct PageMenuHostTests {
     }
 
     // Once the open has visibly arrived, a tap reaches the tile even though the stretched spring is still running.
-    @Test(.timeLimit(.minutes(1)))
+    @Test(.timeLimit(.minutes(1)), .timingSensitive)
     func aTapInTheOpensSettledTailReachesTheTile() async throws {
         let (controller, window) = opened()
         try await waitUntil { abs(drawnOffset(controller)) < 1 }

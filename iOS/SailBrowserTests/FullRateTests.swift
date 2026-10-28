@@ -39,7 +39,7 @@ struct FrameRateVoteTests {
     }
 
     // The vote is held through the longest transition asking for it and released after it settles.
-    @Test func theVoteHoldsUntilTheLatestTransitionSettles() async throws {
+    @Test(.timingSensitive) func theVoteHoldsUntilTheLatestTransitionSettles() async throws {
         FrameRateVote.hold(for: 0.05)
         FrameRateVote.hold(for: 0.2)
         FrameRateVote.hold(for: 0.05)

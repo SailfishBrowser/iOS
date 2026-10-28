@@ -16,3 +16,10 @@ func expectCookieless(
     #expect(configuration.timeoutIntervalForRequest == requestTimeout, sourceLocation: sourceLocation)
     #expect(configuration.timeoutIntervalForResource == resourceTimeout, sourceLocation: sourceLocation)
 }
+
+extension Trait where Self == ConditionTrait {
+    // Off when xcodebuild runs with TEST_RUNNER_SAIL_CI set, as CI does: a slow runner misses the real-time window.
+    static var timingSensitive: Self {
+        .disabled(if: ProcessInfo.processInfo.environment["SAIL_CI"] != nil, "Timing-sensitive; runs locally")
+    }
+}

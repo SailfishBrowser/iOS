@@ -17,6 +17,7 @@ from the scheme handlers (`fail://`, `hang://`, `stall://` and their controller 
   `ProbeHapticSink`.
 - `TestDirectories.swift`: `AppDirectories.temporary()`, a fresh root under the temporary directory per call.
 - `TestSupport.swift`: `expectCookieless(_:requestTimeout:resourceTimeout:)` for the app's cookieless sessions.
+  Its `.timingSensitive` trait skips a test on CI (`TEST_RUNNER_SAIL_CI=1`) that checks a real-time window.
 - `WebTabControllerTests.swift`: `waitUntil`, `loadAndFinish`, `finishLoading`, `finishing`, `showInWindow`,
   `settledHangingController`, `pullAndRelease`, `failingError`, the scheme handlers (`FailingSchemeHandler`,
   `HangingSchemeHandler`, `StalledSchemeHandler`, `HeldReloadSchemeHandler`, `FailingReloadSchemeHandler`) and

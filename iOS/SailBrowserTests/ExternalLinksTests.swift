@@ -158,7 +158,7 @@ struct LinkPolicyTests {
         #expect(probe.opened.count == 1)
     }
 
-    @Test func aTappedLinkLoadsOnceTheAppLinkDeadlinePassesWithNoAnswer() async throws {
+    @Test(.timingSensitive) func aTappedLinkLoadsOnceTheAppLinkDeadlinePassesWithNoAnswer() async throws {
         let probe = OpenerProbe()
         probe.appLinkAnswer = true
         probe.appLinkDelay = .seconds(1)

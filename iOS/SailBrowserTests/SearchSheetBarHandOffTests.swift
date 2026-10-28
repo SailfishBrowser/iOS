@@ -62,7 +62,7 @@ struct SearchSheetBarHandOffTests {
     }
 
     // Today the strip is swallowed by the sheet's host until the close's own hand-off.
-    @Test(.timeLimit(.minutes(1)))
+    @Test(.timeLimit(.minutes(1)), .timingSensitive)
     func lateInATapCloseTheTabStackTakesItsOwnTouch() async throws {
         let stage = try await staged()
         _ = try await tappedClose(stage)

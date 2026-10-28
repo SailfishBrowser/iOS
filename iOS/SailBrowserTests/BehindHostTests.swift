@@ -209,7 +209,7 @@ struct BehindHostTests {
     }
 
     // SwiftUI can apply the opacity change in a pass with UIKit animations off; the fade must still run.
-    @Test func theSubmitFadeRunsEvenWhenAppliedWithUIKitAnimationsOff() async throws {
+    @Test(.timingSensitive) func theSubmitFadeRunsEvenWhenAppliedWithUIKitAnimationsOff() async throws {
         let (controller, window) = hosted()
         var hidden = false
         controller.env.ui.open(.search, animated: false)
@@ -229,7 +229,7 @@ struct BehindHostTests {
         window.isHidden = true
     }
 
-    @Test func submittedPageCutsInRightAfterTheHiddenStep() async throws {
+    @Test(.timingSensitive) func submittedPageCutsInRightAfterTheHiddenStep() async throws {
         let (controller, window) = hosted()
         var atSwitch: (rise: CGFloat, veil: CGFloat)?
         submitted(controller) {
@@ -449,7 +449,7 @@ struct BehindHostTests {
         #expect(controller.dim.alpha == 0)
     }
 
-    @Test func reopeningSearchMidSubmitRestoresThePage() async throws {
+    @Test(.timingSensitive) func reopeningSearchMidSubmitRestoresThePage() async throws {
         let (controller, window) = hosted()
         var calls = 0
         submitted(controller) { calls += 1 }
@@ -506,7 +506,7 @@ struct BehindHostTests {
         #expect(controller.veil.backgroundColor == Theme.Palette.submitCover)
     }
 
-    @Test func aStaleFadeOutNeverRevealsALaterSubmit() async throws {
+    @Test(.timingSensitive) func aStaleFadeOutNeverRevealsALaterSubmit() async throws {
         let (controller, window) = hosted()
         let ui = controller.env.ui
         var calls = 0
@@ -585,7 +585,7 @@ struct BehindHostTests {
 
     // The page keeps rising after its 0.12 s fade-in; the strip it uncovers at the top must stay the submit's grey
     // until the rise ends, not turn to the open's navy.
-    @Test func theStagingCoverStaysUntilTheRiseEnds() async throws {
+    @Test(.timingSensitive) func theStagingCoverStaysUntilTheRiseEnds() async throws {
         let (controller, window) = hosted()
         _ = try submittedPage(controller)
         controller.applyFade(controller.env.ui.behindOpacity)

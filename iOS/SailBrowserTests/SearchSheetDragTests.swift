@@ -252,7 +252,7 @@ struct SearchSheetDragTests {
 
     // A grab at 30, 60 or 90 percent of a tapped close takes the sheet where it is drawn: the top and the field hold
     // with no jump, the close's motion and hand-off end, and easing it back up reopens search.
-    @Test(.timeLimit(.minutes(1)), arguments: [0.3, 0.6, 0.9])
+    @Test(.timeLimit(.minutes(1)), .timingSensitive, arguments: [0.3, 0.6, 0.9])
     func aGrabDuringATappedCloseTakesTheSheetWhereItIsDrawn(_ fraction: Double) async throws {
         let (env, controller, window, begin) = try await tappedClose()
         let at = begin + fraction * Double(Theme.Motion.searchTapCloseFrames) * Theme.Motion.searchCloseFrame
@@ -353,7 +353,7 @@ struct SearchSheetDragTests {
         window.isHidden = true
     }
 
-    @Test(.timeLimit(.minutes(1)))
+    @Test(.timeLimit(.minutes(1)), .timingSensitive)
     func aFieldStillFocusedWhenTheSheetHidesIsRecoveredThere() async throws {
         let (controller, window) = risen()
         try await waitUntil { controller.keyboardShown }

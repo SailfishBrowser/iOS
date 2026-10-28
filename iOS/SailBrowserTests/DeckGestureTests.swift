@@ -272,7 +272,7 @@ struct DeckDriversTests {
 
     // A rapid close: a second throw 100 ms after the first release is taken while the first card still flies
     // off. Both cards are archived, the first before the second, and neither leaves the drawn deck while on screen.
-    @Test(.timeLimit(.minutes(1))) func twoThrowsAHundredMillisecondsApartBothFlyOffAndArchiveInOrder() async throws {
+    @Test(.timeLimit(.minutes(1)), .timingSensitive) func twoThrowsAHundredMillisecondsApartBothFlyOffAndArchiveInOrder() async throws {
         let scene = UIApplication.shared.connectedScenes.first as! UIWindowScene
         let window = UIWindow(windowScene: scene)
         let controller = BehindController(env: makeEnvironment())
@@ -325,7 +325,7 @@ struct DeckDriversTests {
 
     // The second throw's grab lands inside the first one's gap close: it is taken, and the first card is archived
     // at that grab, before the second.
-    @Test(.timeLimit(.minutes(1))) func aThrowDuringTheGapCloseIsTakenAndArchivesThePendingCardFirst() async throws {
+    @Test(.timeLimit(.minutes(1)), .timingSensitive) func aThrowDuringTheGapCloseIsTakenAndArchivesThePendingCardFirst() async throws {
         let scene = UIApplication.shared.connectedScenes.first as! UIWindowScene
         let window = UIWindow(windowScene: scene)
         let controller = BehindController(env: makeEnvironment())

@@ -260,6 +260,15 @@ struct MenuGroup: View {
     }
 }
 
+// An image view as wide as it is tall, so a glyph keeps its size when turned.
+final class SquareImageView: UIImageView {
+    override var intrinsicContentSize: CGSize {
+        let size = super.intrinsicContentSize
+        let side = max(size.width, size.height)
+        return CGSize(width: side, height: side)
+    }
+}
+
 // A fold header's chevron: down while its rows show, right while they are folded away. It turns on Core Animation, on
 // the fold's spring, from where it is drawn.
 struct FoldChevron: UIViewRepresentable {
@@ -271,10 +280,13 @@ struct FoldChevron: UIViewRepresentable {
     }
 
     func makeUIView(context: Context) -> UIImageView {
-        let chevron = UIImageView(
+        let chevron = SquareImageView(
             image: UIImage(
                 systemName: "chevron.down",
                 withConfiguration: UIImage.SymbolConfiguration(font: Theme.Typography.menuChevronUIFont)))
+        // Drawn unscaled in a square, so the glyph turned on its side is as tall as it was wide instead of being
+        // squeezed into the wide, short frame of the down-pointing one.
+        chevron.contentMode = .center
         chevron.transform = CGAffineTransform(rotationAngle: angle)
         return chevron
     }

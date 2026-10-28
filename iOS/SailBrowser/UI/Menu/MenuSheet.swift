@@ -61,6 +61,7 @@ struct MenuSheet: View {
                 }
                 ActionTile(
                     title: pin.title, systemImage: pin.systemImage, fill: fill, ink: ink, preparing: pin.interaction,
+                    on: tab.isPinned ? Color(isLight ? Theme.Palette.menuSheetTop : Theme.Palette.menuSheetDark) : nil,
                     action: togglePin
                 )
                 #if DEBUG

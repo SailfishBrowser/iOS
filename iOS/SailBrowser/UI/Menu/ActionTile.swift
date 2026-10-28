@@ -9,6 +9,9 @@ struct ActionTile: View {
     let fill: Color
     let ink: Color
     let preparing: Interaction
+    // A tile standing for a state that is on (the pinned tab's Unpin) is filled with the ink and draws its glyph in
+    // the sheet's colour, as a switched-on control does.
+    var on: Color? = nil
     let action: () -> Void
 
     private static let label = Theme.Typography.menuTileLabelUIFont
@@ -23,11 +26,12 @@ struct ActionTile: View {
                 // prepared, so the pin tile's swap would miss the tap's frame. The glyph swaps with its title.
                 Image(systemName: systemImage)
                     .font(Theme.Typography.menuTileIcon)
-                    .foregroundStyle(ink.opacity(Theme.Opacity.menuIcon))
+                    .foregroundStyle(on ?? ink.opacity(Theme.Opacity.menuIcon))
                     .frame(maxWidth: .infinity)
                     .frame(height: Theme.Metrics.menuTileHeight)
                     .background(
-                        fill, in: RoundedRectangle(cornerRadius: Theme.Metrics.menuTileCorner, style: .continuous))
+                        on == nil ? fill : ink,
+                        in: RoundedRectangle(cornerRadius: Theme.Metrics.menuTileCorner, style: .continuous))
                     .contentShape(RoundedRectangle(cornerRadius: Theme.Metrics.menuTileCorner, style: .continuous))
             }
             .buttonStyle(PressStyle(scale: Theme.Metrics.pressScale, preparing: preparing))

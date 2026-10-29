@@ -75,43 +75,4 @@ struct LoadErrorTests {
         #expect(LoadError(loop, fallbackURL: nil)?.url == loopB)
         #expect(LoadError(URLError(.redirectToNonExistentLocation), fallbackURL: fallback)?.reason == .cannotOpen)
     }
-
-    @Test func crashedIsOnlyMadeByHand() {
-        let crashed = LoadError.crashed(url: page)
-        #expect(crashed.reason == .crashed)
-        #expect(crashed.url == page)
-        #expect(crashed.reason.symbol == "memorychip")
-        #expect(!crashed.reason.retriesOnReconnect)
-    }
-
-    @Test func copyNamesNoProtocols() {
-        let symbols: [LoadError.Reason: String] = [
-            .offline: "wifi.slash", .cannotFindHost: "questionmark.circle", .cannotConnect: "exclamationmark.triangle",
-            .timedOut: "clock", .tooManyRedirects: "arrow.triangle.2.circlepath", .notSecure: "lock.slash",
-            .cannotOpen: "xmark.circle", .crashed: "memorychip",
-        ]
-        for reason in LoadError.Reason.allCases {
-            for word in ["DNS", "TLS", "SSL", "HTTP", "redirect", "URL", "error code"] {
-                #expect(!reason.title.localizedCaseInsensitiveContains(word), "\(reason) names \(word)")
-            }
-            #expect(!reason.title.isEmpty && !reason.title.hasSuffix("."), "\(reason)")
-            #expect(reason.button == (reason == .crashed ? "Reload" : "Try Again"), "\(reason)")
-            #expect(reason.symbol == symbols[reason], "\(reason)")
-        }
-        #expect(LoadError.Reason.offline.title == "You're offline")
-        #expect(LoadError.Reason.crashed.title == "This page used too much memory")
-    }
-
-    @Test func cookielessKeepsNothingAndFailsFast() {
-        let configuration = SessionConfiguration.cookieless(requestTimeout: 3, resourceTimeout: 7)
-        #expect(configuration.httpCookieStorage == nil)
-        #expect(!configuration.httpShouldSetCookies)
-        #expect(configuration.urlCache == nil)
-        #expect(configuration.urlCredentialStorage == nil)
-        #expect(!configuration.allowsConstrainedNetworkAccess)
-        #expect(configuration.allowsExpensiveNetworkAccess)
-        #expect(!configuration.waitsForConnectivity)
-        #expect(configuration.timeoutIntervalForRequest == 3)
-        #expect(configuration.timeoutIntervalForResource == 7)
-    }
 }

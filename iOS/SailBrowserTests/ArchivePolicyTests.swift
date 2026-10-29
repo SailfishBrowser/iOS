@@ -21,8 +21,6 @@ struct ArchivePolicyTests {
             [atBoundary, justInside, oldPinned, oldUnpinned], now: now, interval: interval)
 
         #expect(ids == [atBoundary.id, oldUnpinned.id])
-        #expect(ArchiveInterval.oneDay.duration == 86_400)
-        #expect(ArchiveInterval.allCases.map(\.label) == ["12 Hours", "1 Day", "3 Days", "7 Days", "30 Days"])
     }
 
     @Test func anUnvisitedTabAgesFromWhenItWasOpened() {

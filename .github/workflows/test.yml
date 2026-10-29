@@ -37,5 +37,8 @@ jobs:
           unzip -q "$RUNNER_TEMP/xcodegen.zip" -d "$RUNNER_TEMP"
           echo "$RUNNER_TEMP/xcodegen/bin" >> "$GITHUB_PATH"
 
+      # test.sh retries a failed test once when TEST_RUNNER_SAIL_CI is set.
       - name: Test
+        env:
+          TEST_RUNNER_SAIL_CI: 1
         run: iOS/scripts/test.sh

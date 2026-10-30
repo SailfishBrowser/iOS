@@ -341,6 +341,14 @@ import WebKit
         zoomIn(on: tab.id)
     }
 
+    func openFromMac(_ url: URL) {
+        captureOutgoingSnapshot()
+        let tab = browser.openTab(url: url)
+        ui.close()
+        haptics.fire(.macTabsPick)
+        zoomIn(on: tab.id)
+    }
+
     // The privacy policy is a page on the web (App Store guideline 5.1.1(i)): the Settings row opens it in a new tab in
     // front, and the sheet gives way to the page as it does to a restored tab.
     func openPrivacyPolicy() {

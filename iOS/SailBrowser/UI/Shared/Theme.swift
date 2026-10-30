@@ -126,7 +126,7 @@ enum Theme {
             // An empty field leads the keyboard once its rest is known; a prefilled one rides the keyboard.
             case .foregroundRaise, .plusTap: searchOpen
             case .launch, .menuAddressEdit: .keyboard
-            case .tabStackTap, .pinchSwitcher, .deckCardTap, .deckBackgroundTap, .archiveRestore: deckZoom
+            case .tabStackTap, .pinchSwitcher, .deckCardTap, .deckBackgroundTap, .archiveRestore, .macTabsPick: deckZoom
             case .barSwipeSettle: barSwipeSettle
             case .permissionAnswer: permissionSheet
             case .tabStackFlick: tabStackFlickSettle
@@ -160,8 +160,8 @@ enum Theme {
             // The page's own paint is the motion.
             case .refreshLand: nil
             // System UI or WebKit owns the motion.
-            case .chevronLongPress, .archiveOpen, .settingsOpen, .archiveDelete, .settingsChange, .sheetDone,
-                .webEdgeSwipe, .zoomStep:
+            case .chevronLongPress, .archiveOpen, .macTabsOpen, .settingsOpen, .archiveDelete, .settingsChange,
+                .sheetDone, .webEdgeSwipe, .zoomStep:
                 nil
             }
         }
@@ -172,13 +172,13 @@ enum Theme {
             switch interaction {
             // The pinch presses the tab stack button, so it plays the button's tap.
             case .tabStackTap, .pinchSwitcher: .switcherOpened
-            case .tabStackFlick, .archiveRestore: .tabSwitched
+            case .tabStackFlick, .archiveRestore, .macTabsPick: .tabSwitched
             case .deckSettle: .cardSettled
             case .plusTap: .searchOpened
             case .chevronTap: .menuOpened
             // The eyes tap as their neighbour the clear button and the menu's toggles do; the footage cannot show it.
             case .searchClear, .menuNav, .menuFind, .menuShare, .desktopToggle, .displayOptionsToggle, .menuTranslate,
-                .restorePage, .readerOpen, .readerClose, .archiveOpen, .settingsOpen, .permissionAnswer,
+                .restorePage, .readerOpen, .readerClose, .archiveOpen, .macTabsOpen, .settingsOpen, .permissionAnswer,
                 .privateToggle:
                 .buttonTap
             case .barTranslate: .buttonTap
@@ -308,16 +308,16 @@ enum Theme {
             case .cardArchiveArm, .pullTick, .pullArm, .barSwipeTick, .recentArm: .frames(0)
             case .barTranslate: .frames(2)
             case .launch, .barIntro, .clearData, .refreshLand: .timed
-            case .foregroundRaise, .chevronLongPress, .archiveOpen, .settingsOpen, .archiveDelete, .settingsChange,
-                .sheetDone, .webEdgeSwipe:
+            case .foregroundRaise, .chevronLongPress, .archiveOpen, .macTabsOpen, .settingsOpen, .archiveDelete,
+                .settingsChange, .sheetDone, .webEdgeSwipe:
                 .system
             case .tabStackTap, .tabStackFlick, .pinchSwitcher, .deckCardTap, .deckBackgroundTap, .deckScroll, .deckSettle,
                 .cardLift, .cardThrow, .cardReturn, .deckEmptied, .plusTap, .searchTyping, .searchClear, .suggestionTap,
                 .searchSubmit, .searchDragDismiss, .searchDragReturn, .searchDimTap, .searchGrabDuringOpen, .pullRelease, .barHide, .barShow,
                 .chevronTap, .menuDragDismiss, .menuDragReturn, .menuGrabDuringOpen, .menuDimTap, .menuNav,
                 .menuCopyLink, .menuAddressEdit, .menuAddressSubmit, .pin, .unpin, .menuFind, .menuShare, .zoomStep,
-                .desktopToggle, .displayOptionsToggle, .menuTranslate, .restorePage, .archiveRestore, .barSwipe,
-                .barSwipeSettle, .recentRemove, .recentReturn, .readerOpen, .readerClose, .readerDragDismiss,
+                .desktopToggle, .displayOptionsToggle, .menuTranslate, .restorePage, .archiveRestore, .macTabsPick,
+                .barSwipe, .barSwipeSettle, .recentRemove, .recentReturn, .readerOpen, .readerClose, .readerDragDismiss,
                 .readerDragReturn, .permissionAnswer, .privateToggle:
                 .frames(2)
             }
@@ -449,6 +449,7 @@ enum Theme {
         static let searchSheetAboveKeyboard: CGFloat = 304
         static let pillSize = CGSize(width: 76, height: 39)
         static let controlSize: CGFloat = 35
+        static let barControlGap: CGFloat = 12
         static let barHideOffset: CGFloat = 76
         static let barSideInset: CGFloat = 24
         static let barTotalHeight: CGFloat = 76
@@ -593,6 +594,14 @@ enum Theme {
         static let readerInset: CGFloat = 20
 
         static let archiveFavicon: CGFloat = 20
+        // The Mac's spaces sheet: the side inset, the title's and the header's top, and the title's room for the header.
+        static let macTabsInset: CGFloat = 20
+        static let macTabsTop: CGFloat = 20
+        static let macTabsTitleBottom: CGFloat = 8
+        static let macTabsHeaderGap: CGFloat = 16
+        static let macTabsHeaderClearance: CGFloat = 96
+        static let macTabsRowHeight: CGFloat = 48
+        static let macTabsIconGap: CGFloat = 12
         static let downloadIcon: CGFloat = 28
         static let settingsButtonHeight: CGFloat = 40
         // The camera and microphone prompt, ours. Its height is above the bottom safe area; its grabber is UIKit's size.
@@ -687,6 +696,9 @@ enum Theme {
         // measured 16, 13 and 17 points (DynamicTypeTests).
         static let archiveTitle = Font.system(.callout)
         static let archiveDetail = Font.system(.footnote)
+        static let macTabsSpaceTitle = Font.system(.title2, weight: .bold)
+        static let macTabsRow = Font.system(.body)
+        static let macTabsHeaderGlyph = Font.system(.title2)
         static let downloadTitle = Font.system(.callout)
         static let downloadDetail = Font.system(.footnote)
         static let settingsButton = Font.system(.body)

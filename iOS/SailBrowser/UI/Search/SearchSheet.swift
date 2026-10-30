@@ -55,7 +55,7 @@ struct SearchSheet: View {
                 notice ? m.privateRowsFade.animation : m.privateNoticeFade.animation.delay(m.privateRowsReturnDelay),
                 value: privacy.isOn)
             .overlay {
-                Text("You're browsing Incognito")
+                Text("Incognito")
                     .font(Theme.Typography.privateNotice)
                     .foregroundStyle(Theme.Palette.privateNotice)
                     .opacity(notice ? 1 : 0)

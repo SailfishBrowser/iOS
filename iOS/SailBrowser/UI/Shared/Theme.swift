@@ -113,13 +113,9 @@ enum Theme {
         nonisolated static let permissionSheet = MotionToken.spring(duration: 0.3, bounce: 0)
         // The incognito toggle: the field,
         // the sheet and the "Incognito" label run linearly over 11 to 12 frames each way. With the field empty the rows
-        // fade out over 8 frames and the notice fades in over 5 from frame 10; turning off, the notice goes over 5 and
-        // the rows return over 5 from frame 9.
+        // fade out over 8 frames, and back in over 8 when it turns off.
         nonisolated static let privateToggle = MotionToken.curve(duration: 0.19, .linear)
         nonisolated static let privateRowsFade = MotionToken.curve(duration: 8.0 / 60, .linear)
-        nonisolated static let privateNoticeFade = MotionToken.curve(duration: 5.0 / 60, .linear)
-        static let privateNoticeDelay: TimeInterval = 10.0 / 60
-        static let privateRowsReturnDelay: TimeInterval = 9.0 / 60
 
         static func token(for interaction: Interaction) -> MotionToken? {
             switch interaction {
@@ -377,7 +373,6 @@ enum Theme {
         static let privateFieldFill = uiHex(0x2D2D2D)
         static let privateSheetShade = UIColor.black
         static let privateFieldLabel = uiHex(0x959595)
-        static let privateNotice = hex(0x9C999A)
         static let privateBand = UIColor.black
         static let privateBandLabel = UIColor.white
         static let privateIslandRing = uiHex(0x6A1E20)
@@ -661,7 +656,6 @@ enum Theme {
         static let privateToggleUIFont = UIFont.systemFont(ofSize: 17, weight: .medium)
         static let privateFieldLabelUIFont = UIFont.systemFont(ofSize: 13)
         static let privateBandLabelUIFont = UIFont.systemFont(ofSize: 12.5, weight: .semibold)
-        static let privateNotice = Font.system(size: 17, weight: .medium)
         static let cardHeaderSubtitle = Font.system(size: 11.5)
         static let suggestionTitle = Font.system(size: 17, weight: .medium)
         static let suggestionSymbol = Font.system(size: 16)

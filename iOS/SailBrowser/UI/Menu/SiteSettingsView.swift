@@ -11,7 +11,7 @@ struct SiteSettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle("Content Blocking", isOn: changing(\.blocksTrackers))
+                    Toggle("Block Trackers", isOn: changing(\.blocksTrackers))
                         .disabled(!blocksGlobally)
                     Toggle("JavaScript", isOn: changing(\.allowsJavaScript))
                 } footer: {

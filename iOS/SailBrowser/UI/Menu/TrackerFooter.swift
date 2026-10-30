@@ -12,20 +12,18 @@ struct TrackerFooter: View {
         }
     }
 
-    // What the footer shows, and for which site its tap acts.
+    // What the footer shows, and for which site.
     struct Shown: Equatable {
         let host: String
         let content: Content
     }
 
-    @Environment(AppEnvironment.self) private var env
     let shown: Shown
     let fill: Color
+    let open: () -> Void
 
     var body: some View {
-        Button {
-            env.setTrackerBlocking(shown.content == .allowed, forHost: shown.host)
-        } label: {
+        Button(action: open) {
             label
                 .font(Theme.Typography.menuFooter)
                 .frame(maxWidth: .infinity, minHeight: Theme.Metrics.menuListRowHeight, alignment: .leading)

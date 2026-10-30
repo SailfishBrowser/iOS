@@ -38,7 +38,7 @@ enum PolishDemo {
     static let manual: Set<Interaction> = [
         .launch, .foregroundRaise,
         .searchTyping, .chevronLongPress, .menuFind, .menuShare, .archiveDelete, .settingsChange, .webEdgeSwipe,
-        .clearData, .menuAddressEdit, .menuAddressSubmit, .desktopToggle, .displayOptionsToggle, .menuTranslate, .restorePage,
+        .clearData, .menuAddressEdit, .menuAddressSubmit, .desktopToggle, .displayOptionsToggle, .menuTranslate,
         .barSwipe, .barSwipeTick, .barSwipeSettle,
         .barTranslate,
         .recentArm, .recentRemove, .recentReturn,

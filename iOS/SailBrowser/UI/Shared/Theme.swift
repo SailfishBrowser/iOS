@@ -139,7 +139,7 @@ enum Theme {
             case .chevronTap: menuOpen
             case .menuDragReturn: menuReturn
             case .displayOptionsToggle: menuFold
-            case .menuDragDismiss, .menuDimTap, .menuAddressSubmit, .menuFind, .menuShare, .menuTranslate, .restorePage: menuClose
+            case .menuDragDismiss, .menuDimTap, .menuAddressSubmit, .menuFind, .menuShare, .menuTranslate: menuClose
             case .menuNav, .menuCopyLink, .pin, .unpin: press
             case .recentRemove: recentCollapse
             case .recentReturn: recentReturn
@@ -174,7 +174,7 @@ enum Theme {
             case .chevronTap: .menuOpened
             // The eyes tap as their neighbour the clear button and the menu's toggles do; the footage cannot show it.
             case .searchClear, .menuNav, .menuFind, .menuShare, .desktopToggle, .displayOptionsToggle, .menuTranslate,
-                .restorePage, .readerOpen, .readerClose, .archiveOpen, .settingsOpen, .permissionAnswer,
+                .readerOpen, .readerClose, .archiveOpen, .settingsOpen, .permissionAnswer,
                 .privateToggle:
                 .buttonTap
             case .barTranslate: .buttonTap
@@ -312,7 +312,7 @@ enum Theme {
                 .searchSubmit, .searchDragDismiss, .searchDragReturn, .searchDimTap, .searchGrabDuringOpen, .pullRelease, .barHide, .barShow,
                 .chevronTap, .menuDragDismiss, .menuDragReturn, .menuGrabDuringOpen, .menuDimTap, .menuNav,
                 .menuCopyLink, .menuAddressEdit, .menuAddressSubmit, .pin, .unpin, .menuFind, .menuShare, .zoomStep,
-                .desktopToggle, .displayOptionsToggle, .menuTranslate, .restorePage, .archiveRestore, .barSwipe,
+                .desktopToggle, .displayOptionsToggle, .menuTranslate, .archiveRestore, .barSwipe,
                 .barSwipeSettle, .recentRemove, .recentReturn, .readerOpen, .readerClose, .readerDragDismiss,
                 .readerDragReturn, .permissionAnswer, .privateToggle:
                 .frames(2)

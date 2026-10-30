@@ -1,3 +1,4 @@
+import CloudKit
 import SwiftUI
 import WebKit
 
@@ -18,6 +19,7 @@ import WebKit
     let sessions: SessionStore
     let snapshots: SnapshotStore
     let favicons: FaviconStore
+    let macTabs: MacTabsStore
     let ui: UIState
     let haptics: HapticsEngine
     let blocker: ContentBlocker
@@ -98,6 +100,8 @@ import WebKit
             blocker: blocker, sessions: sessions, haptics: haptics, prewarms: { [unowned energy] in !energy.isReduced })
         snapshots = SnapshotStore(directories: directories)
         favicons = FaviconStore(directories: directories)
+        macTabs = MacTabsStore(
+            directories: directories, container: CKContainer(identifier: "iCloud.com.harunkkhan.browser"))
 
         haptics.keepsWarm = { [unowned energy] in !energy.isReduced }
         favicons.allowsNetwork = { [unowned energy] in !energy.isReduced }
@@ -133,6 +137,9 @@ import WebKit
         attachActiveController()
         pool.prewarm()
         Task {
+            await macTabs.start()
+        }
+        Task {
             await blocker.compileMissingLists()
             pool.trackers.domains = await TrackerDomains.bundled()
         }
@@ -144,6 +151,9 @@ import WebKit
     func sceneWillEnterForeground() {
         pool.pressureEnded()
         downloads.resumeExpired()
+        Task {
+            await macTabs.fetch()
+        }
         let active = browser.activeTabID
         let removed = browser.runArchiveSweep()
         guard let active, removed.contains(active) else { return }
@@ -186,6 +196,7 @@ import WebKit
             await sites.flush()
             await downloads.flush()
             await sessions.flush()
+            await macTabs.flush()
             await capture?.value
             await snapshots.flush()
             guard flush == flushNumber else { return }

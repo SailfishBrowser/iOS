@@ -67,7 +67,7 @@ private struct ArchiveRow: View {
         let host = entry.url.host()
         let detail = host ?? entry.url.absoluteString
         HStack {
-            SheetFavicon(box: host.map(env.favicons.favicon(for:)))
+            SheetFavicon(box: host.map(env.favicons.favicon(for:)), size: Theme.Metrics.archiveFavicon)
             VStack(alignment: .leading) {
                 Text(entry.title.isEmpty ? detail : entry.title)
                     .font(Theme.Typography.archiveTitle)
@@ -88,6 +88,7 @@ private struct ArchiveRow: View {
 
 struct SheetFavicon: View {
     let box: FaviconBox?
+    let size: CGFloat
 
     var body: some View {
         Group {
@@ -97,6 +98,6 @@ struct SheetFavicon: View {
                 Image(systemName: "globe").resizable().foregroundStyle(.secondary)
             }
         }
-        .frame(width: Theme.Metrics.archiveFavicon, height: Theme.Metrics.archiveFavicon)
+        .frame(width: size, height: size)
     }
 }

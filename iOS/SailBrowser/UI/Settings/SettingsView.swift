@@ -26,6 +26,7 @@ struct SettingsView: View {
                     .listRowInsets(EdgeInsets())
                     .listRowBackground(Color.clear)
                 }
+                .listSectionSpacing(Theme.Metrics.settingsPillGap)
                 DefaultBrowserSection()
                 Section {
                     SearchEngineView(selection: changing(\.searchEngine))

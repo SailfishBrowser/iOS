@@ -606,6 +606,8 @@ enum Theme {
         // From the Settings title bar to the Downloads and Archive capsules.
         static let settingsTop: CGFloat = 12
         static let settingsButtonGap: CGFloat = 12
+        // From the capsules to the first card.
+        static let settingsPillGap: CGFloat = 18
         // A Settings row's colored square, the size the system Settings app draws.
         static let settingsIcon: CGFloat = 29
         static let settingsIconRadius: CGFloat = 7

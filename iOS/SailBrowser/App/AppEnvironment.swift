@@ -399,15 +399,6 @@ import WebKit
         }
     }
 
-    // The tracker footer's tap: turning blocking off is "restore original page".
-    func setTrackerBlocking(_ on: Bool, forHost host: String) {
-        haptics.fire(on ? .settingsChange : .restorePage)
-        var settings = siteSettings(forHost: host)
-        settings.blocksTrackers = on
-        setSiteSettings(settings, forHost: host)
-        ui.close()
-    }
-
     // A saved deny wins, a saved allow needs no asking, and only the kinds still unset are asked for. A page off screen
     // is denied at once, and a dismissed prompt denies this time only. A private tab ignores the saved decisions and
     // remembers nothing, so a choice made in normal browsing never applies there unseen.

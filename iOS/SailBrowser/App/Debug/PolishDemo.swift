@@ -24,7 +24,7 @@ enum PolishDemo {
         .plusTap,
         .suggestionTap,
         .tabStackFlick, .tabStackTap, .deckScroll, .cardReturn, .cardThrow, .cardArchiveArm,
-        .archiveOpen, .archiveRestore, .tabStackTap, .settingsOpen, .sheetDone,
+        .settingsOpen, .archiveOpen, .archiveRestore, .tabStackTap, .settingsOpen, .sheetDone,
         .tabStackTap, .deckBackgroundTap, .tabStackTap, .deckCardTap, .plusTap, .searchSubmit, .tabStackTap,
         .cardThrow,
     ]

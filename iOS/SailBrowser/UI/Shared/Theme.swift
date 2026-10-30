@@ -602,6 +602,13 @@ enum Theme {
         static let macTabsHeaderClearance: CGFloat = 96
         static let macTabsRowHeight: CGFloat = 48
         static let macTabsIconGap: CGFloat = 12
+        // The pinned pages: three tiles a row, each a 3:2 fill with the page's icon in its centre.
+        static let macTabsTileColumns = 3
+        static let macTabsTileAspect: CGFloat = 3 / 2
+        static let macTabsTileGap: CGFloat = 10
+        static let macTabsTileCorner: CGFloat = 12
+        static let macTabsTileIcon: CGFloat = 28
+        static let macTabsTilesBottom: CGFloat = 12
         static let downloadIcon: CGFloat = 28
         static let settingsButtonHeight: CGFloat = 40
         // The camera and microphone prompt, ours. Its height is above the bottom safe area; its grabber is UIKit's size.
@@ -646,6 +653,7 @@ enum Theme {
         static let menuSheetEdge: CGFloat = 0.12
         // The pill's, tiles' and rows' fill over the sheet, and the stepper's over its row.
         static let menuFill: CGFloat = 0.1
+        static let macTabsTileFill: CGFloat = 0.1
         static let menuStepperFill: CGFloat = 0.06
         static let navPillStroke: CGFloat = 0.12
         static let menuPrimary: CGFloat = 0.88

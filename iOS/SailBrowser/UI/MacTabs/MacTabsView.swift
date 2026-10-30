@@ -94,23 +94,18 @@ private struct MacSpacePage: View {
                 .padding(.trailing, Theme.Metrics.macTabsHeaderClearance)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 0) {
-                    rows(space.pinned, group: "pinned")
+                    if !space.pinned.isEmpty {
+                        MacPinnedTiles(pages: space.pinned)
+                    }
                     if !space.pinned.isEmpty, !space.tabs.isEmpty {
                         Divider()
                             .padding(.horizontal, Theme.Metrics.macTabsInset)
                     }
-                    rows(space.tabs, group: "tabs")
+                    ForEach(space.tabs.indices, id: \.self) { MacPageRow(page: space.tabs[$0]) }
                 }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-    }
-
-    // A page can be listed twice, so a row is known by its group and place.
-    private func rows(_ pages: [MacSpace.Page], group: String) -> some View {
-        ForEach(pages.indices.map { (id: "\(group).\($0)", page: pages[$0]) }, id: \.id) {
-            MacPageRow(page: $0.page)
-        }
     }
 }
 
@@ -123,8 +118,8 @@ private struct MacPageRow: View {
             env.openFromMac(page.url)
         } label: {
             HStack(spacing: Theme.Metrics.macTabsIconGap) {
-                SheetFavicon(box: page.icon.flatMap(UIImage.init(data:)).map(Self.box))
-                Text(page.title.isEmpty ? page.url.host() ?? page.url.absoluteString : page.title)
+                SheetFavicon(box: page.faviconBox, size: Theme.Metrics.archiveFavicon)
+                Text(page.label)
                     .font(Theme.Typography.macTabsRow)
                     .lineLimit(1)
                     .truncationMode(.tail)
@@ -135,10 +130,51 @@ private struct MacPageRow: View {
         }
         .tint(.primary)
     }
+}
 
-    private static func box(_ image: UIImage) -> FaviconBox {
-        let box = FaviconBox()
-        box.set(image: image, tint: nil)
-        return box
+private struct MacPinnedTiles: View {
+    @Environment(AppEnvironment.self) private var env
+    let pages: [MacSpace.Page]
+
+    var body: some View {
+        let column = GridItem(.flexible(), spacing: Theme.Metrics.macTabsTileGap)
+        LazyVGrid(
+            columns: Array(repeating: column, count: Theme.Metrics.macTabsTileColumns),
+            spacing: Theme.Metrics.macTabsTileGap
+        ) {
+            ForEach(pages.indices, id: \.self) { index in
+                let page = pages[index]
+                Button {
+                    env.openFromMac(page.url)
+                } label: {
+                    Color.clear
+                        .aspectRatio(Theme.Metrics.macTabsTileAspect, contentMode: .fit)
+                        .overlay { SheetFavicon(box: page.faviconBox, size: Theme.Metrics.macTabsTileIcon) }
+                        .background(
+                            .white.opacity(Theme.Opacity.macTabsTileFill),
+                            in: .rect(cornerRadius: Theme.Metrics.macTabsTileCorner, style: .continuous))
+                        .contentShape(.rect(cornerRadius: Theme.Metrics.macTabsTileCorner, style: .continuous))
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(page.label)
+            }
+        }
+        .padding(.horizontal, Theme.Metrics.macTabsInset)
+        .padding(.bottom, Theme.Metrics.macTabsTilesBottom)
+    }
+}
+
+extension MacSpace.Page {
+    // The title, or the host when the page has none.
+    fileprivate var label: String {
+        title.isEmpty ? url.host() ?? url.absoluteString : title
+    }
+
+    fileprivate var faviconBox: FaviconBox? {
+        icon.flatMap(UIImage.init(data:)).map { image in
+            let box = FaviconBox()
+            box.set(image: image, tint: nil)
+            return box
+        }
     }
 }

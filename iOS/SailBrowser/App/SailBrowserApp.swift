@@ -1,5 +1,4 @@
 import SwiftUI
-import WebKit
 
 @main
 struct SailBrowserApp: App {

@@ -8,7 +8,6 @@ import os
 
     var text = ""
     private(set) var completedText: String?
-    private(set) var lastSubmitted: String?
     private(set) var rows: [Suggestion]
     private(set) var fetchTask: Task<Void, Never>?
     @ObservationIgnored private var completion: HistoryEntry?
@@ -32,14 +31,13 @@ import os
         text.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    // The page the sheet rises over stays out of the empty field's rows.
-    func prepareForOpen(over page: URL?) -> (text: String, selectAll: Bool) {
+    // Every open starts a new tab, so the field rises empty; the page the sheet rises over stays out of its rows.
+    func prepareForOpen(over page: URL?) {
         openedOver = page
         lastRemote = []
         lastMatches = []
-        text = lastSubmitted ?? ""
+        text = ""
         textChanged(appending: false)
-        return (text, lastSubmitted != nil)
     }
 
     func textChanged(appending: Bool) {
@@ -114,15 +112,6 @@ import os
 
     func submit() -> URL? {
         InputResolver.resolve(completedText ?? text, engine: engine())
-    }
-
-    func record(_ url: URL) {
-        if let query = SearchEngine.query(inResultsURL: url) {
-            lastSubmitted = query
-        } else {
-            let labels = SuggestionRanker.bareHost(url).split(separator: ".")
-            lastSubmitted = labels.dropLast().joined(separator: ".")
-        }
     }
 
     func url(for suggestion: Suggestion) -> URL {

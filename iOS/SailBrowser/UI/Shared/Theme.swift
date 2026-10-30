@@ -119,7 +119,7 @@ enum Theme {
 
         static func token(for interaction: Interaction) -> MotionToken? {
             switch interaction {
-            // An empty field leads the keyboard once its rest is known; a prefilled one rides the keyboard.
+            // The field leads the keyboard once its rest is known; before that it rides the keyboard.
             case .foregroundRaise, .plusTap: searchOpen
             case .launch, .menuAddressEdit: .keyboard
             case .tabStackTap, .pinchSwitcher, .deckCardTap, .deckBackgroundTap, .archiveRestore, .macTabsPick: deckZoom

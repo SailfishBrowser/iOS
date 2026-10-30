@@ -380,7 +380,6 @@ import WebKit
         }
     }
 
-    // The tracker footer's tap.
     func setTrackerBlocking(_ on: Bool, forHost host: String) {
         haptics.fire(on ? .settingsChange : .restorePage)
         var settings = siteSettings(forHost: host)

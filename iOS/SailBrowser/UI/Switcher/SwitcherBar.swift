@@ -5,11 +5,10 @@ struct SwitcherBar: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            HStack(spacing: Theme.Metrics.barControlGap) {
+            HStack {
                 if !env.macTabs.macs.isEmpty {
                     circleButton("desktopcomputer", label: "Mac", overlay: .macTabs, interaction: .macTabsOpen)
                 }
-                circleButton("archivebox", label: "Archive", overlay: .archive, interaction: .archiveOpen)
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             SearchPill(fill: BarStyle.deck.controlFill, atDeck: true)

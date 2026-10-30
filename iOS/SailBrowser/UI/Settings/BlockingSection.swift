@@ -6,9 +6,15 @@ struct BlockingSection: View {
 
     var body: some View {
         Section {
-            Toggle("Block Ads", isOn: changing(\.blocksAds))
-            Toggle("Block Trackers", isOn: changing(\.blocksTrackers))
-            Toggle("Block Cookie Banners", isOn: changing(\.blocksCookieBanners))
+            Toggle(isOn: changing(\.blocksAds)) {
+                SettingsLabel("Block Ads", systemImage: "nosign", color: .orange)
+            }
+            Toggle(isOn: changing(\.blocksTrackers)) {
+                SettingsLabel("Block Trackers", systemImage: "eye.slash.fill", color: .indigo)
+            }
+            Toggle(isOn: changing(\.blocksCookieBanners)) {
+                SettingsLabel("Block Cookie Banners", systemImage: "xmark.shield.fill", color: .teal)
+            }
         }
     }
 }

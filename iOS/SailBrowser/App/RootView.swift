@@ -33,7 +33,6 @@ struct RootView: View {
         .sheet(item: ui.presentedSheet) { item in
             Group {
                 switch item {
-                case .archive: ArchiveView()
                 case .macTabs: MacTabsView()
                 case .settings: SettingsView(blocklistVersion: env.blocklistVersion)
                 case .siteSettings: SiteSettingsView(host: ui.siteSettingsHost!)

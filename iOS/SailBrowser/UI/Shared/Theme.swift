@@ -330,7 +330,7 @@ enum Theme {
         static let demoSubmitPage = "261d33"
         #endif
         static let searchBackdrop = hex(0x1E1C2D)
-        // Settings' Downloads capsule.
+        // Settings' Downloads and Archive capsules.
         static let settingsButtonFill = hex(0x3B3B3B)
         // Drawn at Opacity.searchDim over the page behind the open search sheet.
         static let searchDim = Color.black
@@ -442,7 +442,6 @@ enum Theme {
         static let searchSheetAboveKeyboard: CGFloat = 304
         static let pillSize = CGSize(width: 76, height: 39)
         static let controlSize: CGFloat = 35
-        static let barControlGap: CGFloat = 12
         static let barHideOffset: CGFloat = 76
         static let barSideInset: CGFloat = 24
         static let barTotalHeight: CGFloat = 76
@@ -603,6 +602,14 @@ enum Theme {
         static let macTabsTilesBottom: CGFloat = 12
         static let downloadIcon: CGFloat = 28
         static let settingsButtonHeight: CGFloat = 40
+        // From the Settings title bar to the Downloads and Archive capsules.
+        static let settingsTop: CGFloat = 12
+        static let settingsButtonGap: CGFloat = 12
+        // From the capsules to the first card.
+        static let settingsPillGap: CGFloat = 18
+        // A Settings row's colored square, the size the system Settings app draws.
+        static let settingsIcon: CGFloat = 29
+        static let settingsIconRadius: CGFloat = 7
         // The camera and microphone prompt, ours. Its height is above the bottom safe area; its grabber is UIKit's size.
         static let permissionSheetHeight: CGFloat = 260
         static let permissionButtonHeight: CGFloat = 50
@@ -701,6 +708,7 @@ enum Theme {
         static let downloadTitle = Font.system(.callout)
         static let downloadDetail = Font.system(.footnote)
         static let settingsButton = Font.system(.body)
+        static let settingsIconGlyph = Font.system(size: 15, weight: .semibold)
         static let permissionGlyph = Font.system(size: 34, weight: .regular)
         static let permissionTitle = Font.system(size: 20, weight: .semibold)
         static let permissionButton = Font.system(size: 17, weight: .semibold)

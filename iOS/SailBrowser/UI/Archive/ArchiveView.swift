@@ -13,48 +13,46 @@ struct ArchiveView: View {
         let sections = grouping.sections(env.browser.archived, query: query, now: now, calendar: calendar)
         let timeCutoff = calendar.date(byAdding: .day, value: -Self.daysShowingTime, to: calendar.startOfDay(for: now))!
         let firstID = sections.first?.entries.first?.id
-        NavigationStack {
-            List {
-                ForEach(sections) { section in
-                    Section(section.title) {
-                        ForEach(section.entries) { entry in
-                            Button {
-                                env.restore(entry.id)
-                            } label: {
-                                ArchiveRow(entry: entry, showsTime: entry.archivedAt >= timeCutoff)
-                            }
-                            .tint(.primary)
-                            #if DEBUG
-                            .background {
-                                if entry.id == firstID {
-                                    Color.clear.debugAction(.archiveRestore) { env.restore(entry.id) }
-                                }
-                            }
-                            #endif
+        List {
+            ForEach(sections) { section in
+                Section(section.title) {
+                    ForEach(section.entries) { entry in
+                        Button {
+                            env.restore(entry.id)
+                        } label: {
+                            ArchiveRow(entry: entry, showsTime: entry.archivedAt >= timeCutoff)
                         }
-                        .onDelete { offsets in
-                            for offset in offsets {
-                                env.haptics.fire(.archiveDelete)
-                                env.browser.deleteArchived(section.entries[offset].id)
+                        .tint(.primary)
+                        #if DEBUG
+                        .background {
+                            if entry.id == firstID {
+                                Color.clear.debugAction(.archiveRestore) { env.restore(entry.id) }
                             }
+                        }
+                        #endif
+                    }
+                    .onDelete { offsets in
+                        for offset in offsets {
+                            env.haptics.fire(.archiveDelete)
+                            env.browser.deleteArchived(section.entries[offset].id)
                         }
                     }
                 }
             }
-            .overlay {
-                if sections.isEmpty {
-                    if query.isEmpty {
-                        ContentUnavailableView("No Archived Tabs", systemImage: "archivebox")
-                    } else {
-                        ContentUnavailableView.search(text: query)
-                    }
-                }
-            }
-            .navigationTitle("Archive")
-            .navigationBarTitleDisplayMode(.inline)
-            .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always))
-            .sheetDoneButton()
         }
+        .overlay {
+            if sections.isEmpty {
+                if query.isEmpty {
+                    ContentUnavailableView("No Archived Tabs", systemImage: "archivebox")
+                } else {
+                    ContentUnavailableView.search(text: query)
+                }
+            }
+        }
+        .navigationTitle("Archive")
+        .navigationBarTitleDisplayMode(.inline)
+        .searchable(text: $query, placement: .navigationBarDrawer(displayMode: .always))
+        .sheetDoneButton()
     }
 }
 

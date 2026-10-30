@@ -31,6 +31,7 @@ struct TrackerFooter: View {
                 .background(fill, in: RoundedRectangle(cornerRadius: Theme.Metrics.menuListCorner, style: .continuous))
                 .contentShape(Rectangle())
         }
+        .accessibilityHint("Opens Site Settings")
     }
 
     @ViewBuilder private var label: some View {

@@ -21,7 +21,6 @@ struct TrackerFooter: View {
     @Environment(AppEnvironment.self) private var env
     let shown: Shown
     let fill: Color
-    let isLight: Bool
 
     var body: some View {
         Button {
@@ -29,26 +28,20 @@ struct TrackerFooter: View {
         } label: {
             label
                 .font(Theme.Typography.menuFooter)
-                .frame(maxWidth: .infinity, minHeight: Theme.Metrics.menuFooterHeight, alignment: .leading)
+                .frame(maxWidth: .infinity, minHeight: Theme.Metrics.menuListRowHeight, alignment: .leading)
                 .padding(.horizontal, Theme.Metrics.menuFooterInset)
                 .background(fill, in: RoundedRectangle(cornerRadius: Theme.Metrics.menuListCorner, style: .continuous))
                 .contentShape(Rectangle())
         }
     }
 
-    private var label: some View {
-        let secondary = isLight
-            ? AnyShapeStyle(Color(uiColor: Theme.Palette.menuFooterSecondary)) : AnyShapeStyle(.secondary)
-        return VStack(alignment: .leading, spacing: 0) {
-            switch shown.content {
-            case .scrubbed(let count):
-                let number = Text(count, format: .number).font(Theme.Typography.menuFooterCount)
-                Text("Sailfish scrubbed \(number) \(count == 1 ? "tracker" : "trackers")")
-                Text("Problems? Tap to restore original page").foregroundStyle(secondary)
-            case .allowed:
-                Text("Trackers allowed on this site")
-                Text("Tap to block them again").foregroundStyle(secondary)
-            }
+    @ViewBuilder private var label: some View {
+        switch shown.content {
+        case .scrubbed(let count):
+            let number = Text(count, format: .number).font(Theme.Typography.menuFooterCount)
+            Text("\(number) \(count == 1 ? "tracker" : "trackers") blocked")
+        case .allowed:
+            Text("Trackers allowed")
         }
     }
 }

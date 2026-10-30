@@ -79,7 +79,7 @@ struct MenuSheet: View {
                     MenuGroup(section: sections[index], fill: fill, ink: ink)
                 }
                 if let footer {
-                    TrackerFooter(shown: footer, fill: fill, isLight: isLight)
+                    TrackerFooter(shown: footer, fill: fill)
                 }
             }
             .padding(.top, ActionTile.labelToList)

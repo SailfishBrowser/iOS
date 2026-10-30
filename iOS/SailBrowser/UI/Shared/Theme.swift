@@ -348,8 +348,6 @@ enum Theme {
         static func menuInk(light: Bool) -> Color {
             light ? .black : .white
         }
-        // The tracker footer's second line on a light sheet.
-        static let menuFooterSecondary = uiHex(0x6B6268)
         static let deckGradientStops: [Gradient.Stop] = [
             .init(color: hex(0x19192A), location: 0), .init(color: hex(0x1B1928), location: 0.33),
             .init(color: hex(0x2D1C1E), location: 0.67), .init(color: hex(0x251D26), location: 1),
@@ -584,8 +582,7 @@ enum Theme {
         static let menuStepperInset: CGFloat = 10
         static let menuStepperDivider: CGFloat = 27
         static let menuChevronCentre: CGFloat = 26.5
-        // The tracker footer: two lines, measured 55.4 tall with its text 20.3 in at 440 pt.
-        static let menuFooterHeight: CGFloat = 55.4
+        // The tracker footer's text inset, measured 20.3 at 440 pt.
         static let menuFooterInset: CGFloat = 20.3
 
         // Substituted into reader.css at load: the longest line, and the side inset.

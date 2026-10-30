@@ -28,6 +28,9 @@ nonisolated struct MacTabsCache: Codable, Sendable {
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "sync")
     private static let zoneID = CKRecordZone.ID(zoneName: "MacTabs")
 
+    // The shown Mac's current space when the sheet last opened, and the space of the page last viewed there.
+    var sheetCurrent: String?
+    var sheetPage: String?
     private var cache: MacTabsCache
     @ObservationIgnored private let container: CKContainer
     @ObservationIgnored private let writer: DebouncedWriter<MacTabsCache>

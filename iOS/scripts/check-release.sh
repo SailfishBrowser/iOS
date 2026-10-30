@@ -63,7 +63,9 @@ else
   expect NSPrivacyCollectedDataTypes.0 "<missing>"
   expect NSPrivacyAccessedAPITypes.0.NSPrivacyAccessedAPIType NSPrivacyAccessedAPICategoryUserDefaults
   expect NSPrivacyAccessedAPITypes.0.NSPrivacyAccessedAPITypeReasons.0 CA92.1
-  expect NSPrivacyAccessedAPITypes.1 "<missing>"
+  expect NSPrivacyAccessedAPITypes.1.NSPrivacyAccessedAPIType NSPrivacyAccessedAPICategoryFileTimestamp
+  expect NSPrivacyAccessedAPITypes.1.NSPrivacyAccessedAPITypeReasons.0 C617.1
+  expect NSPrivacyAccessedAPITypes.2 "<missing>"
 fi
 
 exit "$status"

@@ -113,13 +113,9 @@ enum Theme {
         nonisolated static let permissionSheet = MotionToken.spring(duration: 0.3, bounce: 0)
         // The incognito toggle: the field,
         // the sheet and the "Incognito" label run linearly over 11 to 12 frames each way. With the field empty the rows
-        // fade out over 8 frames and the notice fades in over 5 from frame 10; turning off, the notice goes over 5 and
-        // the rows return over 5 from frame 9.
+        // fade out over 8 frames, and back in over 8 when it turns off.
         nonisolated static let privateToggle = MotionToken.curve(duration: 0.19, .linear)
         nonisolated static let privateRowsFade = MotionToken.curve(duration: 8.0 / 60, .linear)
-        nonisolated static let privateNoticeFade = MotionToken.curve(duration: 5.0 / 60, .linear)
-        static let privateNoticeDelay: TimeInterval = 10.0 / 60
-        static let privateRowsReturnDelay: TimeInterval = 9.0 / 60
 
         static func token(for interaction: Interaction) -> MotionToken? {
             switch interaction {
@@ -143,7 +139,7 @@ enum Theme {
             case .chevronTap: menuOpen
             case .menuDragReturn: menuReturn
             case .displayOptionsToggle: menuFold
-            case .menuDragDismiss, .menuDimTap, .menuAddressSubmit, .menuFind, .menuShare, .menuTranslate, .restorePage: menuClose
+            case .menuDragDismiss, .menuDimTap, .menuAddressSubmit, .menuFind, .menuShare, .menuTranslate: menuClose
             case .menuNav, .menuCopyLink, .pin, .unpin: press
             case .recentRemove: recentCollapse
             case .recentReturn: recentReturn
@@ -178,7 +174,7 @@ enum Theme {
             case .chevronTap: .menuOpened
             // The eyes tap as their neighbour the clear button and the menu's toggles do; the footage cannot show it.
             case .searchClear, .menuNav, .menuFind, .menuShare, .desktopToggle, .displayOptionsToggle, .menuTranslate,
-                .restorePage, .readerOpen, .readerClose, .archiveOpen, .macTabsOpen, .settingsOpen, .permissionAnswer,
+                .readerOpen, .readerClose, .archiveOpen, .macTabsOpen, .settingsOpen, .permissionAnswer,
                 .privateToggle:
                 .buttonTap
             case .barTranslate: .buttonTap
@@ -316,7 +312,7 @@ enum Theme {
                 .searchSubmit, .searchDragDismiss, .searchDragReturn, .searchDimTap, .searchGrabDuringOpen, .pullRelease, .barHide, .barShow,
                 .chevronTap, .menuDragDismiss, .menuDragReturn, .menuGrabDuringOpen, .menuDimTap, .menuNav,
                 .menuCopyLink, .menuAddressEdit, .menuAddressSubmit, .pin, .unpin, .menuFind, .menuShare, .zoomStep,
-                .desktopToggle, .displayOptionsToggle, .menuTranslate, .restorePage, .archiveRestore, .macTabsPick,
+                .desktopToggle, .displayOptionsToggle, .menuTranslate, .archiveRestore, .macTabsPick,
                 .barSwipe, .barSwipeSettle, .recentRemove, .recentReturn, .readerOpen, .readerClose, .readerDragDismiss,
                 .readerDragReturn, .permissionAnswer, .privateToggle:
                 .frames(2)
@@ -348,8 +344,6 @@ enum Theme {
         static func menuInk(light: Bool) -> Color {
             light ? .black : .white
         }
-        // The tracker footer's second line on a light sheet.
-        static let menuFooterSecondary = uiHex(0x6B6268)
         static let deckGradientStops: [Gradient.Stop] = [
             .init(color: hex(0x19192A), location: 0), .init(color: hex(0x1B1928), location: 0.33),
             .init(color: hex(0x2D1C1E), location: 0.67), .init(color: hex(0x251D26), location: 1),
@@ -379,7 +373,6 @@ enum Theme {
         static let privateFieldFill = uiHex(0x2D2D2D)
         static let privateSheetShade = UIColor.black
         static let privateFieldLabel = uiHex(0x959595)
-        static let privateNotice = hex(0x9C999A)
         static let privateBand = UIColor.black
         static let privateBandLabel = UIColor.white
         static let privateIslandRing = uiHex(0x6A1E20)
@@ -584,8 +577,7 @@ enum Theme {
         static let menuStepperInset: CGFloat = 10
         static let menuStepperDivider: CGFloat = 27
         static let menuChevronCentre: CGFloat = 26.5
-        // The tracker footer: two lines, measured 55.4 tall with its text 20.3 in at 440 pt.
-        static let menuFooterHeight: CGFloat = 55.4
+        // The tracker footer's text inset, measured 20.3 at 440 pt.
         static let menuFooterInset: CGFloat = 20.3
 
         // Substituted into reader.css at load: the longest line, and the side inset.
@@ -680,7 +672,6 @@ enum Theme {
         static let privateToggleUIFont = UIFont.systemFont(ofSize: 17, weight: .medium)
         static let privateFieldLabelUIFont = UIFont.systemFont(ofSize: 13)
         static let privateBandLabelUIFont = UIFont.systemFont(ofSize: 12.5, weight: .semibold)
-        static let privateNotice = Font.system(size: 17, weight: .medium)
         static let cardHeaderSubtitle = Font.system(size: 11.5)
         static let suggestionTitle = Font.system(size: 17, weight: .medium)
         static let suggestionSymbol = Font.system(size: 16)

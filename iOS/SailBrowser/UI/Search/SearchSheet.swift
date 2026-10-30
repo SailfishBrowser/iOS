@@ -13,8 +13,8 @@ struct SearchSheet: View {
         self.onSelect = onSelect
     }
 
-    // An empty incognito field shows a line of text in place of the rows; typing brings the rows back at once.
-    static func showsNotice(isPrivate: Bool, text: String) -> Bool {
+    // An empty incognito field shows no rows; typing brings them back at once.
+    static func hidesRows(isPrivate: Bool, text: String) -> Bool {
         isPrivate && text.isEmpty
     }
 
@@ -22,8 +22,7 @@ struct SearchSheet: View {
         + Theme.Metrics.searchFieldGap
 
     var body: some View {
-        let notice = Self.showsNotice(isPrivate: privacy.isOn, text: model.text)
-        let m = Theme.Motion.self
+        let hidden = Self.hidesRows(isPrivate: privacy.isOn, text: model.text)
         VStack(spacing: 0) {
             Color.clear
                 .frame(height: Self.fieldSlotHeight)
@@ -49,21 +48,9 @@ struct SearchSheet: View {
                     transaction.animation = nil
                 }
             }
-            // Only the toggle animates the swap; text changes swap at once.
-            .opacity(notice ? 0 : 1)
-            .animation(
-                notice ? m.privateRowsFade.animation : m.privateNoticeFade.animation.delay(m.privateRowsReturnDelay),
-                value: privacy.isOn)
-            .overlay {
-                Text("You're browsing Incognito")
-                    .font(Theme.Typography.privateNotice)
-                    .foregroundStyle(Theme.Palette.privateNotice)
-                    .opacity(notice ? 1 : 0)
-                    .animation(
-                        notice ? m.privateNoticeFade.animation.delay(m.privateNoticeDelay) : m.privateNoticeFade.animation,
-                        value: privacy.isOn)
-                    .allowsHitTesting(false)
-            }
+            // Only the toggle animates the rows; text changes show or hide them at once.
+            .opacity(hidden ? 0 : 1)
+            .animation(Theme.Motion.privateRowsFade.animation, value: privacy.isOn)
         }
         #if DEBUG
         .debugAction(.suggestionTap) { onSelect(model.rows[0]) }

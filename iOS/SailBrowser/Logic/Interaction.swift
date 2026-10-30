@@ -17,6 +17,7 @@ nonisolated enum Interaction: String, CaseIterable, Sendable {
     case pin, unpin, menuFind, menuShare, zoomStep, desktopToggle, displayOptionsToggle, menuTranslate, restorePage
     case readerOpen, readerClose, readerDragDismiss, readerDragReturn
     case archiveOpen, settingsOpen, archiveRestore, archiveDelete, settingsChange, clearData, sheetDone
+    case macTabsOpen, macTabsPick
     case webEdgeSwipe
     case recentArm, recentRemove, recentReturn
     case permissionAnswer

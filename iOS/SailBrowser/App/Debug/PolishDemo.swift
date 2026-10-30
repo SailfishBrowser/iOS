@@ -46,6 +46,7 @@ enum PolishDemo {
         .permissionAnswer,
         .privateToggle,
         .pinchSwitcher,
+        .macTabsOpen, .macTabsPick,
     ]
 
     static func play(in env: AppEnvironment) async throws {

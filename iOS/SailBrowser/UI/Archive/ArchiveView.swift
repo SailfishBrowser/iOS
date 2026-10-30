@@ -67,7 +67,7 @@ private struct ArchiveRow: View {
         let host = entry.url.host()
         let detail = host ?? entry.url.absoluteString
         HStack {
-            Favicon(box: host.map(env.favicons.favicon(for:)))
+            SheetFavicon(box: host.map(env.favicons.favicon(for:)))
             VStack(alignment: .leading) {
                 Text(entry.title.isEmpty ? detail : entry.title)
                     .font(Theme.Typography.archiveTitle)
@@ -86,7 +86,7 @@ private struct ArchiveRow: View {
     }
 }
 
-private struct Favicon: View {
+struct SheetFavicon: View {
     let box: FaviconBox?
 
     var body: some View {

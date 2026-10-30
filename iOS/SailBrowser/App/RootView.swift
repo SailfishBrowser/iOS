@@ -34,6 +34,7 @@ struct RootView: View {
             Group {
                 switch item {
                 case .archive: ArchiveView()
+                case .macTabs: MacTabsView()
                 case .settings: SettingsView(blocklistVersion: env.blocklistVersion)
                 case .siteSettings: SiteSettingsView(host: ui.siteSettingsHost!)
                 }

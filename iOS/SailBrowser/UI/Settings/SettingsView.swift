@@ -50,7 +50,7 @@ struct SettingsView: View {
                     Button {
                         confirmingClear = true
                     } label: {
-                        SettingsLabel("Clear Browsing Data", systemImage: "eraser.fill", color: .red)
+                        SettingsLabel("Clear Browsing Data…", systemImage: "eraser.fill", color: .red)
                     }
                     .tint(.primary)
                     .confirmationDialog("Clear Browsing Data", isPresented: $confirmingClear, titleVisibility: .visible) {

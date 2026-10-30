@@ -1,7 +1,7 @@
 import SwiftUI
 
 @Observable final class UIState {
-    enum Overlay: Equatable, Sendable { case none, search, menu, archive, settings, siteSettings }
+    enum Overlay: Equatable, Sendable { case none, search, menu, archive, macTabs, settings, siteSettings }
 
     // How the behind card and its dim follow the latest searchShrink change, on Core Animation; nil sets it at once.
     struct ShrinkMotion: Equatable {
@@ -10,7 +10,7 @@ import SwiftUI
     }
 
     enum SheetItem: String, Identifiable, Sendable {
-        case archive, settings, siteSettings
+        case archive, macTabs, settings, siteSettings
         var id: String { rawValue }
     }
 
@@ -51,13 +51,14 @@ import SwiftUI
             get: {
                 switch self.overlay {
                 case .archive: .archive
+                case .macTabs: .macTabs
                 case .settings: .settings
                 case .siteSettings: .siteSettings
                 case .none, .search, .menu: nil
                 }
             },
             set: { item in
-                if item == nil, [.archive, .settings, .siteSettings].contains(self.overlay) {
+                if item == nil, [.archive, .macTabs, .settings, .siteSettings].contains(self.overlay) {
                     self.close()
                 }
             })
@@ -88,7 +89,7 @@ import SwiftUI
         case .none: return false
         case .menu: return !deck.barsShowDeck
         case .siteSettings: return deckProgress == 0
-        case .archive, .settings: return deck.barsShowDeck
+        case .archive, .macTabs, .settings: return deck.barsShowDeck
         case .search: return true
         }
     }
@@ -117,7 +118,7 @@ import SwiftUI
         case .search:
             self.overlay = overlay
             shrinkSearch(to: 1, ShrinkMotion(token: .keyboard, velocity: 0))
-        case .archive, .settings, .siteSettings:
+        case .archive, .macTabs, .settings, .siteSettings:
             FrameRateVote.hold(for: Theme.Latency.systemSheetHold)
             self.overlay = overlay
         case .menu, .none:
@@ -149,7 +150,7 @@ import SwiftUI
         switch closing {
         // Each sheet's host moves it on Core Animation from where it is drawn.
         case .search, .menu: apply()
-        case .archive, .settings, .siteSettings, .none:
+        case .archive, .macTabs, .settings, .siteSettings, .none:
             if closing != .none {
                 FrameRateVote.hold(for: Theme.Latency.systemSheetHold)
             }
@@ -182,7 +183,7 @@ import SwiftUI
     private static func home(of overlay: Overlay) -> CGFloat? {
         switch overlay {
         case .menu: 0
-        case .archive, .settings: 1
+        case .archive, .macTabs, .settings: 1
         case .none, .search, .siteSettings: nil
         }
     }

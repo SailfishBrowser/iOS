@@ -205,8 +205,8 @@ nonisolated struct MacTabsCache: Codable, Sendable {
             }
             devices[id] = MacDevice(
                 id: id, name: name, modified: record.modificationDate!,
-                spaceIDs: record.encryptedValues["spaces"] as? [String] ?? [],
-                current: record.encryptedValues["current"] as? String)
+                spaceIDs: record["spaces"] as? [String] ?? [],
+                current: record["current"] as? String)
         case "Space":
             guard let content = record.encryptedValues["content"] as? Data else {
                 logger.error("Space \(id, privacy: .public) has no content")

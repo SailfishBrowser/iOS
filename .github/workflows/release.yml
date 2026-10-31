@@ -74,6 +74,13 @@ jobs:
           SAIL_DEFAULT_BROWSER: ${{ inputs.default_browser && 'YES' || 'NO' }}
         run: CURRENT_PROJECT_VERSION="$BUILD" MARKETING_VERSION="$VERSION" iOS/scripts/archive.sh
 
+      # The build just uploaded is still processing and not listed, so the newest listed build, the one testers are
+      # on until it lands, is kept and everything older expires.
+      - name: Expire earlier TestFlight builds
+        run: |
+          BUNDLE_ID="$(awk '/PRODUCT_BUNDLE_IDENTIFIER:/ { print $2; exit }' iOS/project.yml)"
+          swift iOS/scripts/expire-builds.swift "$BUNDLE_ID" 1
+
       - name: Publish the release
         env:
           NOTES: ${{ inputs.notes }}

@@ -1,0 +1,39 @@
+# Expires every TestFlight build but the newest <keep>, so testers can only install the current one.
+name: Expire TestFlight builds
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep:
+        description: How many of the newest builds to keep
+        default: "1"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  expire:
+    if: github.repository == 'SailfishBrowser/iOS'
+    runs-on: macos-26
+    environment: release
+    timeout-minutes: 15
+    env:
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Write the API key
+        env:
+          ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+        run: |
+          echo "$ASC_KEY_P8" | base64 --decode > "$RUNNER_TEMP/AuthKey.p8"
+          echo "ASC_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+
+      - name: Expire the older builds
+        env:
+          KEEP: ${{ inputs.keep }}
+        run: |
+          BUNDLE_ID="$(awk '/PRODUCT_BUNDLE_IDENTIFIER:/ { print $2; exit }' iOS/project.yml)"
+          swift iOS/scripts/expire-builds.swift "$BUNDLE_ID" "$KEEP"

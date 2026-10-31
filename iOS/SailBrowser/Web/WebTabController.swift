@@ -389,9 +389,11 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         }
     }
 
-    // Beside the readable check, superseded the same way. A page whose text cannot be read has none to summarize.
+    // Beside the readable check, superseded the same way, and only where the model can summarize it, so a phone
+    // without the model runs no second Readability pass. A page whose text cannot be read has none to summarize.
     private func readContent() {
         contentTask?.cancel()
+        guard PageSummarizer.isAvailable else { return }
         contentTask = Task { [weak self, webView] in
             // A page whose process has ended has no URL until it reloads.
             guard let url = webView.url else { return }

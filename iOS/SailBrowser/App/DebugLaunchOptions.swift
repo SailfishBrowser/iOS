@@ -190,10 +190,11 @@ extension DebugLaunchOptions {
         case "menu":
             env.ui.close(animated: false)
             env.ui.open(.menu, animated: false)
-        case "archive":
+        case "macTabs":
             env.ui.close(animated: false, deckTo: 1)
-            env.ui.open(.archive, animated: false)
-        case "settings":
+            env.ui.open(.macTabs, animated: false)
+        // The archive opens from Settings.
+        case "settings", "archive":
             env.ui.close(animated: false, deckTo: 1)
             env.ui.open(.settings, animated: false)
         case let screen?:

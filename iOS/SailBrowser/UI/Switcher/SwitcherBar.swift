@@ -4,12 +4,16 @@ struct SwitcherBar: View {
     @Environment(AppEnvironment.self) private var env
 
     var body: some View {
-        HStack {
-            circleButton("archivebox", label: "Archive", overlay: .archive, interaction: .archiveOpen)
-            Spacer()
+        HStack(spacing: 0) {
+            HStack {
+                if !env.macTabs.macs.isEmpty {
+                    circleButton("desktopcomputer", label: "Mac", overlay: .macTabs, interaction: .macTabsOpen)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
             SearchPill(fill: BarStyle.deck.controlFill, atDeck: true)
-            Spacer()
             circleButton("gearshape", label: "Settings", overlay: .settings, interaction: .settingsOpen)
+                .frame(maxWidth: .infinity, alignment: .trailing)
         }
         .buttonStyle(.plain)
         .foregroundStyle(BarStyle.deck.glyph)

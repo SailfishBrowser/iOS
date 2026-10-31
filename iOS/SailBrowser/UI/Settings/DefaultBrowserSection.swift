@@ -12,10 +12,13 @@ struct DefaultBrowserSection: View {
     var body: some View {
         if Self.isAvailable(Bundle.main.object(forInfoDictionaryKey: "SailfishDefaultBrowser") as? String) {
             Section {
-                Button("Set Sailfish as Default Browser") {
+                Button {
                     env.haptics.fire(.settingsOpen)
                     UIApplication.shared.open(URL(string: UIApplication.openDefaultApplicationsSettingsURLString)!)
+                } label: {
+                    SettingsLabel("Set Sailfish as Default Browser", systemImage: "globe", color: .blue)
                 }
+                .tint(.primary)
             }
         }
     }

@@ -113,20 +113,16 @@ enum Theme {
         nonisolated static let permissionSheet = MotionToken.spring(duration: 0.3, bounce: 0)
         // The incognito toggle: the field,
         // the sheet and the "Incognito" label run linearly over 11 to 12 frames each way. With the field empty the rows
-        // fade out over 8 frames and the notice fades in over 5 from frame 10; turning off, the notice goes over 5 and
-        // the rows return over 5 from frame 9.
+        // fade out over 8 frames, and back in over 8 when it turns off.
         nonisolated static let privateToggle = MotionToken.curve(duration: 0.19, .linear)
         nonisolated static let privateRowsFade = MotionToken.curve(duration: 8.0 / 60, .linear)
-        nonisolated static let privateNoticeFade = MotionToken.curve(duration: 5.0 / 60, .linear)
-        static let privateNoticeDelay: TimeInterval = 10.0 / 60
-        static let privateRowsReturnDelay: TimeInterval = 9.0 / 60
 
         static func token(for interaction: Interaction) -> MotionToken? {
             switch interaction {
-            // An empty field leads the keyboard once its rest is known; a prefilled one rides the keyboard.
+            // The field leads the keyboard once its rest is known; before that it rides the keyboard.
             case .foregroundRaise, .plusTap: searchOpen
             case .launch, .menuAddressEdit: .keyboard
-            case .tabStackTap, .pinchSwitcher, .deckCardTap, .deckBackgroundTap, .archiveRestore: deckZoom
+            case .tabStackTap, .pinchSwitcher, .deckCardTap, .deckBackgroundTap, .archiveRestore, .macTabsPick: deckZoom
             case .barSwipeSettle: barSwipeSettle
             case .permissionAnswer: permissionSheet
             case .tabStackFlick: tabStackFlickSettle
@@ -143,7 +139,7 @@ enum Theme {
             case .chevronTap: menuOpen
             case .menuDragReturn: menuReturn
             case .displayOptionsToggle: menuFold
-            case .menuDragDismiss, .menuDimTap, .menuAddressSubmit, .menuFind, .menuShare, .menuTranslate, .restorePage: menuClose
+            case .menuDragDismiss, .menuDimTap, .menuAddressSubmit, .menuFind, .menuShare, .menuTranslate: menuClose
             case .menuNav, .menuCopyLink, .pin, .unpin: press
             case .recentRemove: recentCollapse
             case .recentReturn: recentReturn
@@ -160,8 +156,8 @@ enum Theme {
             // The page's own paint is the motion.
             case .refreshLand: nil
             // System UI or WebKit owns the motion.
-            case .chevronLongPress, .archiveOpen, .settingsOpen, .archiveDelete, .settingsChange, .sheetDone,
-                .webEdgeSwipe, .zoomStep:
+            case .chevronLongPress, .archiveOpen, .macTabsOpen, .settingsOpen, .archiveDelete, .settingsChange,
+                .sheetDone, .webEdgeSwipe, .zoomStep:
                 nil
             }
         }
@@ -172,13 +168,13 @@ enum Theme {
             switch interaction {
             // The pinch presses the tab stack button, so it plays the button's tap.
             case .tabStackTap, .pinchSwitcher: .switcherOpened
-            case .tabStackFlick, .archiveRestore: .tabSwitched
+            case .tabStackFlick, .archiveRestore, .macTabsPick: .tabSwitched
             case .deckSettle: .cardSettled
             case .plusTap: .searchOpened
             case .chevronTap: .menuOpened
             // The eyes tap as their neighbour the clear button and the menu's toggles do; the footage cannot show it.
             case .searchClear, .menuNav, .menuFind, .menuShare, .desktopToggle, .displayOptionsToggle, .menuTranslate,
-                .restorePage, .readerOpen, .readerClose, .archiveOpen, .settingsOpen, .permissionAnswer,
+                .readerOpen, .readerClose, .archiveOpen, .macTabsOpen, .settingsOpen, .permissionAnswer,
                 .privateToggle:
                 .buttonTap
             case .barTranslate: .buttonTap
@@ -308,16 +304,16 @@ enum Theme {
             case .cardArchiveArm, .pullTick, .pullArm, .barSwipeTick, .recentArm: .frames(0)
             case .barTranslate: .frames(2)
             case .launch, .barIntro, .clearData, .refreshLand: .timed
-            case .foregroundRaise, .chevronLongPress, .archiveOpen, .settingsOpen, .archiveDelete, .settingsChange,
-                .sheetDone, .webEdgeSwipe:
+            case .foregroundRaise, .chevronLongPress, .archiveOpen, .macTabsOpen, .settingsOpen, .archiveDelete,
+                .settingsChange, .sheetDone, .webEdgeSwipe:
                 .system
             case .tabStackTap, .tabStackFlick, .pinchSwitcher, .deckCardTap, .deckBackgroundTap, .deckScroll, .deckSettle,
                 .cardLift, .cardThrow, .cardReturn, .deckEmptied, .plusTap, .searchTyping, .searchClear, .suggestionTap,
                 .searchSubmit, .searchDragDismiss, .searchDragReturn, .searchDimTap, .searchGrabDuringOpen, .pullRelease, .barHide, .barShow,
                 .chevronTap, .menuDragDismiss, .menuDragReturn, .menuGrabDuringOpen, .menuDimTap, .menuNav,
                 .menuCopyLink, .menuAddressEdit, .menuAddressSubmit, .pin, .unpin, .menuFind, .menuShare, .zoomStep,
-                .desktopToggle, .displayOptionsToggle, .menuTranslate, .restorePage, .archiveRestore, .barSwipe,
-                .barSwipeSettle, .recentRemove, .recentReturn, .readerOpen, .readerClose, .readerDragDismiss,
+                .desktopToggle, .displayOptionsToggle, .menuTranslate, .archiveRestore, .macTabsPick,
+                .barSwipe, .barSwipeSettle, .recentRemove, .recentReturn, .readerOpen, .readerClose, .readerDragDismiss,
                 .readerDragReturn, .permissionAnswer, .privateToggle:
                 .frames(2)
             }
@@ -334,7 +330,7 @@ enum Theme {
         static let demoSubmitPage = "261d33"
         #endif
         static let searchBackdrop = hex(0x1E1C2D)
-        // Settings' Downloads capsule.
+        // Settings' Downloads and Archive capsules.
         static let settingsButtonFill = hex(0x3B3B3B)
         // Drawn at Opacity.searchDim over the page behind the open search sheet.
         static let searchDim = Color.black
@@ -348,8 +344,6 @@ enum Theme {
         static func menuInk(light: Bool) -> Color {
             light ? .black : .white
         }
-        // The tracker footer's second line on a light sheet.
-        static let menuFooterSecondary = uiHex(0x6B6268)
         static let deckGradientStops: [Gradient.Stop] = [
             .init(color: hex(0x19192A), location: 0), .init(color: hex(0x1B1928), location: 0.33),
             .init(color: hex(0x2D1C1E), location: 0.67), .init(color: hex(0x251D26), location: 1),
@@ -379,7 +373,6 @@ enum Theme {
         static let privateFieldFill = uiHex(0x2D2D2D)
         static let privateSheetShade = UIColor.black
         static let privateFieldLabel = uiHex(0x959595)
-        static let privateNotice = hex(0x9C999A)
         static let privateBand = UIColor.black
         static let privateBandLabel = UIColor.white
         static let privateIslandRing = uiHex(0x6A1E20)
@@ -584,8 +577,7 @@ enum Theme {
         static let menuStepperInset: CGFloat = 10
         static let menuStepperDivider: CGFloat = 27
         static let menuChevronCentre: CGFloat = 26.5
-        // The tracker footer: two lines, measured 55.4 tall with its text 20.3 in at 440 pt.
-        static let menuFooterHeight: CGFloat = 55.4
+        // The tracker footer's text inset, measured 20.3 at 440 pt.
         static let menuFooterInset: CGFloat = 20.3
 
         // Substituted into reader.css at load: the longest line, and the side inset.
@@ -593,8 +585,31 @@ enum Theme {
         static let readerInset: CGFloat = 20
 
         static let archiveFavicon: CGFloat = 20
+        // The Mac's spaces sheet: the side inset, the title's and the header's top, and the title's room for the header.
+        static let macTabsInset: CGFloat = 20
+        static let macTabsTop: CGFloat = 20
+        static let macTabsTitleBottom: CGFloat = 8
+        static let macTabsHeaderGap: CGFloat = 16
+        static let macTabsHeaderClearance: CGFloat = 96
+        static let macTabsRowHeight: CGFloat = 48
+        static let macTabsIconGap: CGFloat = 12
+        // The pinned pages: three tiles a row, each a 3:2 fill with the page's icon in its centre.
+        static let macTabsTileColumns = 3
+        static let macTabsTileAspect: CGFloat = 3 / 2
+        static let macTabsTileGap: CGFloat = 10
+        static let macTabsTileCorner: CGFloat = 12
+        static let macTabsTileIcon: CGFloat = 28
+        static let macTabsTilesBottom: CGFloat = 12
         static let downloadIcon: CGFloat = 28
         static let settingsButtonHeight: CGFloat = 40
+        // From the Settings title bar to the Downloads and Archive capsules.
+        static let settingsTop: CGFloat = 12
+        static let settingsButtonGap: CGFloat = 12
+        // From the capsules to the first card.
+        static let settingsPillGap: CGFloat = 18
+        // A Settings row's colored square, the size the system Settings app draws.
+        static let settingsIcon: CGFloat = 29
+        static let settingsIconRadius: CGFloat = 7
         // The camera and microphone prompt, ours. Its height is above the bottom safe area; its grabber is UIKit's size.
         static let permissionSheetHeight: CGFloat = 260
         static let permissionButtonHeight: CGFloat = 50
@@ -637,6 +652,7 @@ enum Theme {
         static let menuSheetEdge: CGFloat = 0.12
         // The pill's, tiles' and rows' fill over the sheet, and the stepper's over its row.
         static let menuFill: CGFloat = 0.1
+        static let macTabsTileFill: CGFloat = 0.1
         static let menuStepperFill: CGFloat = 0.06
         static let navPillStroke: CGFloat = 0.12
         static let menuPrimary: CGFloat = 0.88
@@ -664,7 +680,6 @@ enum Theme {
         static let privateToggleUIFont = UIFont.systemFont(ofSize: 17, weight: .medium)
         static let privateFieldLabelUIFont = UIFont.systemFont(ofSize: 13)
         static let privateBandLabelUIFont = UIFont.systemFont(ofSize: 12.5, weight: .semibold)
-        static let privateNotice = Font.system(size: 17, weight: .medium)
         static let cardHeaderSubtitle = Font.system(size: 11.5)
         static let suggestionTitle = Font.system(size: 17, weight: .medium)
         static let suggestionSymbol = Font.system(size: 16)
@@ -687,9 +702,13 @@ enum Theme {
         // measured 16, 13 and 17 points (DynamicTypeTests).
         static let archiveTitle = Font.system(.callout)
         static let archiveDetail = Font.system(.footnote)
+        static let macTabsSpaceTitle = Font.system(.title2, weight: .bold)
+        static let macTabsRow = Font.system(.body)
+        static let macTabsHeaderGlyph = Font.system(.title2)
         static let downloadTitle = Font.system(.callout)
         static let downloadDetail = Font.system(.footnote)
         static let settingsButton = Font.system(.body)
+        static let settingsIconGlyph = Font.system(size: 15, weight: .semibold)
         static let permissionGlyph = Font.system(size: 34, weight: .regular)
         static let permissionTitle = Font.system(size: 20, weight: .semibold)
         static let permissionButton = Font.system(size: 17, weight: .semibold)

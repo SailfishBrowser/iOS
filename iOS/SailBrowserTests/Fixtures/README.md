@@ -16,7 +16,6 @@ defaults.
   since the store makes records only from live WebKit downloads. One running, one failed and one finished record.
 - `State/state-before-private-tabs.json`: a `state.json` from before private tabs. `PrivateTabsTests` checks that all
   of its tabs load as normal tabs.
-- `Reader/`: pages for the reader view's extraction tests.
 
 The first format had no `site-settings.json`. Session files are the web view's own bytes and are
 not decoded by the app, so none are kept here.

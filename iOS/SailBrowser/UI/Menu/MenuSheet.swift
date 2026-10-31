@@ -79,8 +79,8 @@ struct MenuSheet: View {
                 ForEach(sections.indices, id: \.self) { index in
                     MenuGroup(section: sections[index], fill: fill, ink: ink)
                 }
-                if let footer {
-                    TrackerFooter(shown: footer, fill: fill, isLight: isLight)
+                if let footer, let siteSettingsAction {
+                    TrackerFooter(shown: footer, fill: fill, open: siteSettingsAction)
                 }
             }
             .padding(.top, ActionTile.labelToList)

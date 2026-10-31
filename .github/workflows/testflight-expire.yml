@@ -9,6 +9,9 @@ on:
         default: "1"
         required: true
 
+permissions:
+  contents: read
+
 jobs:
   expire:
     if: github.repository == 'SailfishBrowser/iOS'

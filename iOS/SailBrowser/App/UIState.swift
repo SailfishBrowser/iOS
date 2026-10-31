@@ -1,7 +1,7 @@
 import SwiftUI
 
 @Observable final class UIState {
-    enum Overlay: Equatable, Sendable { case none, search, menu, macTabs, settings, siteSettings }
+    enum Overlay: Equatable, Sendable { case none, search, menu, macTabs, settings, siteSettings, summary }
 
     // How the behind card and its dim follow the latest searchShrink change, on Core Animation; nil sets it at once.
     struct ShrinkMotion: Equatable {
@@ -53,7 +53,7 @@ import SwiftUI
                 case .macTabs: .macTabs
                 case .settings: .settings
                 case .siteSettings: .siteSettings
-                case .none, .search, .menu: nil
+                case .none, .search, .menu, .summary: nil
                 }
             },
             set: { item in
@@ -87,7 +87,7 @@ import SwiftUI
         switch overlay {
         case .none: return false
         case .menu: return !deck.barsShowDeck
-        case .siteSettings: return deckProgress == 0
+        case .siteSettings, .summary: return deckProgress == 0
         case .macTabs, .settings: return deck.barsShowDeck
         case .search: return true
         }
@@ -120,7 +120,7 @@ import SwiftUI
         case .macTabs, .settings, .siteSettings:
             FrameRateVote.hold(for: Theme.Latency.systemSheetHold)
             self.overlay = overlay
-        case .menu, .none:
+        case .menu, .summary, .none:
             self.overlay = overlay
         }
         return true
@@ -147,8 +147,9 @@ import SwiftUI
             return
         }
         switch closing {
-        // Each sheet's host moves it on Core Animation from where it is drawn.
-        case .search, .menu: apply()
+        // Each sheet's host moves it on Core Animation from where it is drawn; the fold has played before the summary
+        // closes.
+        case .search, .menu, .summary: apply()
         case .macTabs, .settings, .siteSettings, .none:
             if closing != .none {
                 FrameRateVote.hold(for: Theme.Latency.systemSheetHold)
@@ -183,7 +184,7 @@ import SwiftUI
         switch overlay {
         case .menu: 0
         case .macTabs, .settings: 1
-        case .none, .search, .siteSettings: nil
+        case .none, .search, .siteSettings, .summary: nil
         }
     }
 

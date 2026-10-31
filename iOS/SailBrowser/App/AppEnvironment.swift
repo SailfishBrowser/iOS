@@ -158,7 +158,7 @@ import WebKit
         let removed = browser.runArchiveSweep()
         guard let active, removed.contains(active) else { return }
         attachActiveController()
-        if ui.overlay == .menu {
+        if ui.overlay == .menu || ui.overlay == .summary {
             ui.close(animated: false)
         }
         if ui.overlay == .none || ui.overlay == .search {
@@ -687,6 +687,10 @@ import WebKit
             self?.pinchedToSwitcher(controller) == true
         }
         controller.onPinchZoomEnded = { [weak self, unowned controller] in self?.pinchZoomEnded(controller) }
+        controller.onPinchToSummary = { [weak self, unowned controller] in
+            self?.pinchedToSummary(controller) == true
+        }
+        controller.onSummaryClosed = { [weak self] in self?.ui.close() }
         controller.onOpenWindow = { [weak self] webView, url in
             guard let self else { return }
             flick?.finish()
@@ -764,10 +768,19 @@ import WebKit
     // one drawn, the reader open or not) with no bar swipe or flick in motion: it presses the button. WebKit keeps
     // shrinking the page under the fingers past the deck's rest, so the page's picture waits for its zoom to end.
     private func pinchedToSwitcher(_ controller: WebTabController) -> Bool {
-        guard controller === activeController, ui.overlay == .none, !ui.deck.barsShowDeck, pager?.isMoving != true,
-            flick?.isMoving != true
-        else { return false }
+        guard takesPinch(controller) else { return false }
         return openSwitcher(via: .pinchSwitcher)
+    }
+
+    // Where the model can summarize, the same pinch folds the page over its summary instead.
+    private func pinchedToSummary(_ controller: WebTabController) -> Bool {
+        guard takesPinch(controller) else { return false }
+        return ui.open(.summary)
+    }
+
+    private func takesPinch(_ controller: WebTabController) -> Bool {
+        controller === activeController && ui.overlay == .none && !ui.deck.barsShowDeck && pager?.isMoving != true
+            && flick?.isMoving != true
     }
 
     private func pinchZoomEnded(_ controller: WebTabController) {
@@ -786,6 +799,8 @@ import WebKit
                 controller.onDownload = nil
                 controller.onPinchToSwitcher = nil
                 controller.onPinchZoomEnded = nil
+                controller.onPinchToSummary = nil
+                controller.onSummaryClosed = nil
             }
             settledSnapshotTasks.removeValue(forKey: id)?.cancel()
             pool.discard(id)

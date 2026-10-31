@@ -27,6 +27,12 @@ struct SearchPill: View {
             .accessibilityLabel(atDeck ? "New Tab" : "Search")
             .accessibilityAddTraits(.isButton)
             .accessibilityAction { open() }
+            // VoiceOver cannot pinch, and a web view's own actions are out of its reach.
+            .accessibilityActions {
+                if !atDeck, PageSummarizer.isAvailable {
+                    Button("Summarize") { env.activeController?.summarize() }
+                }
+            }
     }
 
     // A swipe or a flick still springing lands first, as the switcher does, so search opens over the tab it was going

@@ -126,8 +126,9 @@ struct BarSlide: UIViewRepresentable {
         view.cover(ui.isSearchCoveringBar)
     }
 
+    // Under the summary card the switcher cannot open, so the bar goes until the page unfolds.
     static func isHidden(_ controller: WebTabController, _ ui: UIState) -> Bool {
-        controller.isBarHidden || controller.isFindNavigatorVisible || ui.isBarIntroPending
+        controller.isBarHidden || controller.isFindNavigatorVisible || ui.isBarIntroPending || ui.overlay == .summary
     }
 }
 

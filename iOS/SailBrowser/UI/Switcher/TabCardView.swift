@@ -12,9 +12,10 @@ struct TabCardView: View {
             if isActive, let controller = env.activeController, controller.tabID == tab.id {
                 WebPageView(
                     controller: controller, geometry: geometry,
-                    // A sliding or lifting page takes no touch: a touch on it holds the pages instead.
-                    isInteractive: env.ui.deckProgress == 0 && env.ui.overlay == .none && !env.ui.deck.isPaging
-                        && env.ui.deck.flickIDs.isEmpty,
+                    // A sliding or lifting page takes no touch: a touch on it holds the pages instead. The summary's
+                    // fold and card sit in the page.
+                    isInteractive: env.ui.deckProgress == 0 && (env.ui.overlay == .none || env.ui.overlay == .summary)
+                        && !env.ui.deck.isPaging && env.ui.deck.flickIDs.isEmpty,
                     isPrivate: tab.isPrivate)
                     #if DEBUG
                     .debugSurface(.webScroll, controller.debugScroll)

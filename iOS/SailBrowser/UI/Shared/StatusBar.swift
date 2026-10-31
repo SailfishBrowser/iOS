@@ -7,7 +7,7 @@ enum StatusBarStyle {
     static func style(
         tint: UIColor?, deckProgress: CGFloat, overlay: UIState.Overlay, traits: UITraitCollection
     ) -> UIStatusBarStyle {
-        guard let tint, deckProgress == 0, overlay == .none || overlay == .menu else {
+        guard let tint, deckProgress == 0, overlay == .none || overlay == .menu || overlay == .summary else {
             return .lightContent
         }
         return Theme.Palette.isLight(tint, in: traits) ? .darkContent : .lightContent

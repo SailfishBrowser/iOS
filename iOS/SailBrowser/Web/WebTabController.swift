@@ -324,6 +324,15 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         settle(to: 0, velocity: 0)
     }
 
+    // The summary is closed from outside, as a link from another app lands in a new tab in front: the fold goes at
+    // once, so the page is not left folded under its card with its zoom pinch off.
+    func closeSummary() {
+        guard fold != nil else { return }
+        foldClock?.stop()
+        foldClock = nil
+        settled(at: 0)
+    }
+
     // The fold sits over the page and the reader, under the band. WebKit's own zoom pinch is cancelled, so the page
     // stays at rest under the snapshots, and no switcher picture is taken.
     private func beginFold(over page: WKWebView, anchor: CGFloat) {

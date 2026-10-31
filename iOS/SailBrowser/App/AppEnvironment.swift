@@ -237,6 +237,7 @@ import WebKit
             linksAfterSubmit.append(url)
             return
         }
+        activeController?.closeSummary()
         ui.close(animated: false)
         ui.setDeck(0, animated: false)
         open(url)

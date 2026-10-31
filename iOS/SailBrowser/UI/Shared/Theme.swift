@@ -444,6 +444,9 @@ enum Theme {
         static let displayCorner: CGFloat = 55
         static let padDisplayCorner: CGFloat = 18
         static let searchSheetCorner: CGFloat = 38
+        // The page menu, the permission prompt, the search field and its rows keep to a centred column no wider than
+        // the system's form sheet, so on a wide window they read at a phone's measure.
+        static let sheetColumnWidth: CGFloat = 580
         static let searchSheetAboveKeyboard: CGFloat = 304
         static let pillSize = CGSize(width: 76, height: 39)
         static let controlSize: CGFloat = 35

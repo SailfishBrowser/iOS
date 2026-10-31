@@ -407,7 +407,8 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
 
     private func shapeField(asPill pill: Bool) {
         let full = CGSize(
-            width: view.bounds.width - 2 * Theme.Metrics.searchFieldInset, height: Theme.Metrics.searchFieldHeight)
+            width: min(view.bounds.width, Theme.Metrics.sheetColumnWidth) - 2 * Theme.Metrics.searchFieldInset,
+            height: Theme.Metrics.searchFieldHeight)
         let size = pill ? Theme.Metrics.pillSize : full
         fieldWidth.constant = full.width
         capsuleWidth.constant = size.width
@@ -1173,7 +1174,8 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
         rowReturn?.stop()
         rowReturn = nil
         rowHeld = false
-        let swipe = RowSwipe(width: container.bounds.width, from: recentSwipe.offset(for: row))
+        let swipe = RowSwipe(
+            width: min(container.bounds.width, Theme.Metrics.sheetColumnWidth), from: recentSwipe.offset(for: row))
         rowSwipe = swipe
         recentSwipe.follow(row, swipe)
     }

@@ -91,9 +91,12 @@ final class PageMenuController: UIViewController, UIGestureRecognizerDelegate, S
         // The content rests on the keyboard's guide, which follows the address editor's keyboard on its own curve and
         // sits on the home indicator's inset without one. The sheet's fill runs a screen's height from its top, so neither
         // the upward stretch nor a fold that springs from a taller sheet shows its edge.
+        let fullWidth = container.widthAnchor.constraint(equalTo: view.widthAnchor)
+        fullWidth.priority = .defaultHigh
         NSLayoutConstraint.activate([
-            container.leadingAnchor.constraint(equalTo: view.leadingAnchor),
-            container.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            container.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            container.widthAnchor.constraint(lessThanOrEqualToConstant: Theme.Metrics.sheetColumnWidth),
+            fullWidth,
             container.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             container.topAnchor.constraint(equalTo: content.topAnchor),
             content.leadingAnchor.constraint(equalTo: container.leadingAnchor),

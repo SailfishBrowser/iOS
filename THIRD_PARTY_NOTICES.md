@@ -35,4 +35,4 @@ License v3.0. `update-blocklists.sh` downloads and builds it as a tool; it is no
 
 `iOS/SailBrowser/Resources/Reader` contains Readability 0.6.0 by Mozilla, https://github.com/mozilla/readability,
 based on Arc90's readability. Copyright (c) 2010 Arc90 Inc. Apache License 2.0 (`Readability-0.6.0-LICENSE.md`
-beside it). The test fixtures in `iOS/SailBrowserTests/Fixtures/Reader` include a page from its test suite.
+beside it).

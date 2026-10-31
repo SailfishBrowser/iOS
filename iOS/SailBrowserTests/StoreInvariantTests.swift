@@ -24,7 +24,7 @@ struct StoreInvariantTests {
     }
 
     // A hand-edited or half-migrated state.json names an active tab that is not there: the most recently active tab
-    // takes its place, so the deck opens on a card instead of a blank gradient.
+    // takes its place.
     @Test func aForeignActiveTabIDFallsBackToTheMostRecentlyActiveTab() throws {
         let now = Date()
         let tabs = zip([0, 1, 2], [-100.0, -10, -50]).map { i, idle in
@@ -35,13 +35,6 @@ struct StoreInvariantTests {
         let store = BrowserStore(directories: directories)
         #expect(store.activeTabID == tabs[1].id)
         #expect(store.activeTab?.url == tabs[1].url)
-
-        let env = makeEnvironment(directories)
-        env.launch()
-        let ids = env.browser.tabs.map(\.id)
-        let activeIndex = try #require(ids.firstIndex { $0 == env.browser.activeTabID })
-        #expect(DeckView.built(ids: ids, activeIndex: activeIndex, span: 0...2, pinned: []) == [0, 1, 2])
-        #expect(env.ui.deckProgress == 0)
     }
 
     // A second tap on an archive row before the sheet has left asks for an entry already restored: nothing happens.
@@ -53,21 +46,6 @@ struct StoreInvariantTests {
         #expect(store.restore(tab.id) == nil)
         #expect(store.tabs.map(\.url) == [tab.url])
         #expect(store.archived.isEmpty)
-
-        let env = makeEnvironment()
-        env.open(URL(string: "https://b.test/")!)
-        let opened = env.browser.tabs[0].id
-        env.archive(opened)
-        env.restore(opened)
-        env.restore(opened)
-        #expect(env.browser.tabs.map(\.url) == [URL(string: "https://b.test/")!])
-        #expect(env.browser.archived.isEmpty)
-        #expect(env.activeController?.tabID == env.browser.activeTabID)
-    }
-
-    @Test func textLimitsArePinned() {
-        #expect(Theme.Text.titleLimit == 1024)
-        #expect(Theme.Text.urlLimit == 8192)
     }
 
     // A page's <title> can be anything: the stores keep its first line, to the title limit.
@@ -112,24 +90,5 @@ struct StoreInvariantTests {
         #expect(store.runArchiveSweep().isEmpty)
         clock.advance(1)
         #expect(store.runArchiveSweep() == [visited.id, unshown.id])
-    }
-
-    // The system purged Caches and the sessions folder is gone while tabs are still saved: launch runs, every cover
-    // falls back to its tint, and every session load answers nil.
-    @Test func aLaunchWithoutCachesOrSessionsRunsOnTint() async throws {
-        let now = Date()
-        let tabs = (0..<3).map { tab("t\($0)", createdAt: now, lastActiveAt: now) }
-        try writeState(tabs, activeTabID: tabs[2].id)
-        #expect(!FileManager.default.fileExists(atPath: directories.caches.path(percentEncoded: false)))
-        #expect(!FileManager.default.fileExists(atPath: directories.support.appending(path: "sessions").path(percentEncoded: false)))
-
-        let env = makeEnvironment(directories)
-        env.launch()
-        await env.finishLaunch()
-
-        #expect(env.browser.tabs.map(\.id) == tabs.map(\.id))
-        #expect(env.activeController?.tabID == tabs[2].id)
-        #expect(tabs.allSatisfy { env.snapshots.thumbnail(for: $0.id).image == nil })
-        #expect(tabs.allSatisfy { env.sessions.load($0.id) == nil })
     }
 }

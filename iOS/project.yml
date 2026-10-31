@@ -18,7 +18,7 @@ targets:
       path: SailBrowser/Info.plist
       properties:
         CADisableMinimumFrameDurationOnPhone: true
-        UIBackgroundModes: [audio]
+        UIBackgroundModes: [audio, remote-notification]
         UILaunchScreen:
           UIColorName: LaunchBackground
         CFBundleURLTypes:
@@ -48,9 +48,11 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.haladir.arcmobile
         # Xcode's generated Info.plist forces CFBundleName to PRODUCT_NAME, so this target ships the plist above as written.
         GENERATE_INFOPLIST_FILE: NO
-        # YES signs with SailBrowser.entitlements (the default browser entitlement). Leave NO until Apple grants it
-        # to the team and the App ID has the Default Browser capability, or signing fails.
+        # Both entitlements files carry iCloud. YES signs with SailBrowser.entitlements, which adds the default browser
+        # entitlement. Leave NO until Apple grants it to the team and the App ID has the Default Browser capability,
+        # or signing fails.
         SAIL_DEFAULT_BROWSER: NO
+        SAIL_ENTITLEMENTS_NO: SailBrowser/SailBrowser-iCloud.entitlements
         SAIL_ENTITLEMENTS_YES: SailBrowser/SailBrowser.entitlements
         CODE_SIGN_ENTITLEMENTS: $(SAIL_ENTITLEMENTS_$(SAIL_DEFAULT_BROWSER))
         TARGETED_DEVICE_FAMILY: "1"

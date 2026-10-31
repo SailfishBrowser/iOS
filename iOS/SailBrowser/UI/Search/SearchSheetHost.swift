@@ -318,7 +318,8 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
         apply()
     }
 
-    // A prefilled sheet rides the keyboard's own animation, which starts here, after the open's commit.
+    // A sheet opened before the keyboard's rest is known rides the keyboard's own animation, which starts here, after
+    // the open's commit.
     @objc private func keyboardWillShow(_ notification: Notification) {
         FrameRateVote.hold(for: notification.userInfo![UIResponder.keyboardAnimationDurationUserInfoKey] as! Double)
         keyboardPlaced = true
@@ -519,12 +520,12 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
         field.alpha = 1
         containerHeight.constant = view.window!.bounds.height
         let prepared = measure("searchRisePrepare")
-        let prefill = model.prepareForOpen(over: env.activeController?.url)
+        model.prepareForOpen(over: env.activeController?.url)
         showPrivacy()
         prepared()
-        // An empty field rises on its own spring ahead of the keyboard; a prefilled one rides the keyboard. Leading
-        // needs the keyboard's rest, known once it has shown.
-        let leadTop = prefill.text.isEmpty ? keyboardRestTop : nil
+        // The field rises on its own spring ahead of the keyboard once the keyboard's rest is known (it is after the
+        // first show); before that it rides the keyboard.
+        let leadTop = keyboardRestTop
         if let leadTop {
             keyboardBottom.isActive = false
             detachedTop.constant = leadTop
@@ -559,7 +560,7 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
         for copy in copies {
             copy.alpha = 1
         }
-        field.text = prefill.text
+        field.text = ""
         UIView.animate(
             withDuration: Theme.Motion.searchCopyFade, delay: Theme.Motion.searchCopyHold,
             options: .allowUserInteraction
@@ -596,12 +597,7 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
             }
         }
         if focusesField {
-            afterFirstFrame { [self] in
-                focus()
-                if prefill.selectAll {
-                    field.selectedTextRange = field.textRange(from: field.beginningOfDocument, to: field.endOfDocument)
-                }
-            }
+            afterFirstFrame { [self] in focus() }
         }
     }
 
@@ -611,8 +607,8 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
         let speed = close.speed(at: CACurrentMediaTime())
         let below = holdDrawnSheet()
         attachesWhenKeyboardShown = !keyboardBottom.isActive
-        let prefill = model.prepareForOpen(over: env.activeController?.url)
-        field.text = prefill.text
+        model.prepareForOpen(over: env.activeController?.url)
+        field.text = ""
         showPrivacy()
         UIView.animate(withDuration: Theme.Motion.searchCopyFade, delay: 0, options: .allowUserInteraction) {
             for copy in self.copies {
@@ -633,12 +629,7 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
             } completion: { _ in }
         }
         guard focusesField else { return }
-        afterFirstFrame { [self] in
-            focus()
-            if prefill.selectAll {
-                field.selectedTextRange = field.textRange(from: field.beginningOfDocument, to: field.endOfDocument)
-            }
-        }
+        afterFirstFrame { [self] in focus() }
     }
 
     // The close runs on native springs fitted to measured motion: the sheet's top to the bar and the field collapsing into
@@ -1408,7 +1399,6 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
     }
 
     private func submit(_ url: URL, via interaction: Interaction) {
-        model.record(url)
         env.submit(url, via: interaction)
     }
 }

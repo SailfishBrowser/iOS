@@ -11,13 +11,10 @@ struct SiteSettingsView: View {
         NavigationStack {
             Form {
                 Section {
-                    Toggle("Content Blocking", isOn: changing(\.blocksTrackers))
-                        .disabled(!blocksGlobally)
-                    Toggle("JavaScript", isOn: changing(\.allowsJavaScript))
-                } footer: {
-                    if !blocksGlobally {
-                        Text("Blocking is off for every site in Settings.")
+                    if blocksGlobally {
+                        Toggle("Block Trackers", isOn: changing(\.blocksTrackers))
                     }
+                    Toggle("JavaScript", isOn: changing(\.allowsJavaScript))
                 }
                 Section {
                     permission("Camera", .camera)

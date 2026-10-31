@@ -7,15 +7,20 @@ struct TransferSection: View {
 
     var body: some View {
         Section {
-            Button("Export Open Tabs…") {
+            Button {
                 env.haptics.fire(.settingsOpen)
                 SharePresenter.share(text: TabExport.text(env.browser.tabs))
+            } label: {
+                SettingsLabel("Export Open Tabs…", systemImage: "square.and.arrow.up", color: .green)
             }
             .disabled(!env.browser.tabs.contains { !$0.isPrivate })
-            Button("Import Open Tabs…") {
+            Button {
                 env.haptics.fire(.settingsOpen)
                 showsImport = true
+            } label: {
+                SettingsLabel("Import Open Tabs…", systemImage: "square.and.arrow.down", color: .green)
             }
         }
+        .tint(.primary)
     }
 }

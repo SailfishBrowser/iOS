@@ -1,5 +1,4 @@
 import SwiftUI
-import WebKit
 
 @main
 struct SailBrowserApp: App {
@@ -20,6 +19,7 @@ struct SailBrowserApp: App {
         #endif
         let hapticSink = LiveHapticSink()
         let env = AppEnvironment(directories: directories, ruleStore: .default(), hapticSink: hapticSink)
+        AppDelegate.remoteNotification = { await env.macTabs.fetch() }
         env.launch()
         self.env = env
         self.hapticSink = hapticSink

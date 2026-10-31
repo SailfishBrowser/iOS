@@ -2,7 +2,7 @@ import Foundation
 import Testing
 @testable import SailBrowser
 
-private nonisolated final class FixtureBundle {}
+nonisolated final class FixtureBundle {}
 
 nonisolated func fixtureData(_ name: String) throws -> Data {
     try Data(contentsOf: Bundle(for: FixtureBundle.self).url(forResource: name, withExtension: "json")!)

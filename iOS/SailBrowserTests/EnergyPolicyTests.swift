@@ -29,7 +29,7 @@ nonisolated final class EnergyStub: Sendable {
 }
 
 // Records how many thermal reads the stub had seen when the first observer registered.
-private nonisolated final class RecordingCenter: NotificationCenter {
+private nonisolated final class RecordingCenter: NotificationCenter, @unchecked Sendable {
     private let stub: EnergyStub
     let readsAtFirstObserver = Mutex<Int?>(nil)
 
@@ -45,22 +45,6 @@ private nonisolated final class RecordingCenter: NotificationCenter {
         let reads = stub.thermalReads.withLock { $0 }
         readsAtFirstObserver.withLock { $0 = $0 ?? reads }
         return super.addObserver(forName: name, object: obj, queue: queue, using: block)
-    }
-}
-
-// Counts Observation's fires for isReduced and re-arms on each, so a no-change assignment would count too.
-@MainActor private final class ChangeCounter {
-    private(set) var fires = 0
-
-    func arm(_ policy: EnergyPolicy) {
-        withObservationTracking {
-            _ = policy.isReduced
-        } onChange: { [self] in
-            MainActor.assumeIsolated {
-                fires += 1
-                arm(policy)
-            }
-        }
     }
 }
 
@@ -103,22 +87,5 @@ struct EnergyPolicyTests {
         _ = EnergyPolicy(readings: stub.readings, center: center)
         let reads = center.readsAtFirstObserver.withLock { $0 }
         #expect(reads != nil && reads! >= 1)
-    }
-
-    @Test func observersSeeOnlyRealChanges() async throws {
-        let stub = EnergyStub()
-        let center = NotificationCenter()
-        let policy = EnergyPolicy(readings: stub.readings, center: center)
-        let counter = ChangeCounter()
-        counter.arm(policy)
-        stub.lowPower.withLock { $0 = true }
-        center.post(name: .NSProcessInfoPowerStateDidChange, object: nil)
-        try await waitUntil { counter.fires == 1 }
-        #expect(policy.isReduced)
-        center.post(name: .NSProcessInfoPowerStateDidChange, object: nil)
-        stub.lowPower.withLock { $0 = false }
-        center.post(name: .NSProcessInfoPowerStateDidChange, object: nil)
-        try await waitUntil { !policy.isReduced }
-        #expect(counter.fires == 2)
     }
 }

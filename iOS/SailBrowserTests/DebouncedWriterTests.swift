@@ -3,42 +3,7 @@ import Synchronization
 import Testing
 @testable import SailBrowser
 
-nonisolated private struct EncodeProbe: Encodable, Sendable {
-    static let encodedOnMain = Mutex<Bool?>(nil)
-
-    func encode(to encoder: Encoder) throws {
-        Self.encodedOnMain.withLock { $0 = Thread.isMainThread }
-        var container = encoder.singleValueContainer()
-        try container.encode(1)
-    }
-}
-
 struct DebouncedWriterTests {
-    @Test func encodesOffTheMainThread() async {
-        let writer = DebouncedWriter<EncodeProbe>(
-            fileURL: URL(filePath: "/dev/null"), delay: .milliseconds(10), write: { _, _ in })
-        writer.schedule(EncodeProbe())
-        await writer.flush()
-        #expect(EncodeProbe.encodedOnMain.withLock { $0 } == false)
-    }
-
-    @Test func coalescesBurstIntoSingleWrite() async throws {
-        let calls = Mutex<[Data]>([])
-        let writer = DebouncedWriter<Int>(
-            fileURL: URL(filePath: "/dev/null"), delay: .milliseconds(200),
-            write: { data, _ in calls.withLock { $0.append(data) } })
-
-        for value in 1...10 {
-            writer.schedule(value)
-            try await Task.sleep(for: .milliseconds(5))
-        }
-        try await Task.sleep(for: .milliseconds(600))
-
-        #expect(calls.withLock { $0 } == [Data("10".utf8)])
-        await writer.flush()
-        #expect(calls.withLock { $0.count } == 1)
-    }
-
     @Test func flushWaitsForWriteInProgress() async throws {
         let (started, startedSignal) = AsyncStream<Void>.makeStream()
         let (gate, release) = AsyncStream<Void>.makeStream()

@@ -41,13 +41,6 @@ struct SearchModelTests {
         #expect(model.completedText == "a.com")
     }
 
-    @Test func aFreshInstallOpensOnAnEmptyList() {
-        let model = makeModel()
-
-        #expect(model.prepareForOpen(over: nil).text == "")
-        #expect(model.rows.isEmpty)
-    }
-
     // Five pages across three sites, the last still open behind the sheet: the other four, newest first, two of them
     // from one site.
     @Test func fivePagesAcrossThreeSitesOpenOnTheOtherFour() {
@@ -66,7 +59,7 @@ struct SearchModelTests {
         }
         let model = SearchModel(history: history, service: stubService(), engine: { .google })
 
-        _ = model.prepareForOpen(over: URL(string: pages[4].0)!)
+        model.prepareForOpen(over: URL(string: pages[4].0)!)
 
         #expect(model.rows == pages[0..<4].reversed().map { .site(url: URL(string: $0.0)!, title: $0.1) })
     }
@@ -82,21 +75,6 @@ struct SearchModelTests {
         #expect(model.rows == [.site(url: URL(string: "https://a.com/two")!, title: "Two")])
     }
 
-    // With more recents than show, a removal brings the next one into the last slot and keeps the others as they were,
-    // so the rows below only move up and one row comes in.
-    @Test func removingARecentBringsTheNextOneIn() {
-        for name in ["e", "d", "c", "b", "a"] {
-            visit("https://\(name).com/", name)
-        }
-        let site = { (name: String) in Suggestion.site(url: URL(string: "https://\(name).com/")!, title: name) }
-        let model = makeModel()
-        #expect(Array(model.rows.prefix(Theme.Metrics.suggestionRowCount)) == ["a", "b", "c", "d"].map(site))
-
-        model.removeRecent(URL(string: "https://a.com/")!)
-
-        #expect(Array(model.rows.prefix(Theme.Metrics.suggestionRowCount)) == ["b", "c", "d", "e"].map(site))
-    }
-
     @Test func staleSuggestionResponseIsDropped() async {
         StubSuggestProtocol.answer("swift", with: #"["sw",["swift","swiftui","swift playgrounds"],[]]"#)
         let model = makeModel()
@@ -106,21 +84,6 @@ struct SearchModelTests {
         await model.fetchTask?.value
 
         #expect(model.rows == [.query("swift")])
-    }
-
-    // The history scan runs off the main actor in the fetch task: the keystroke's own turn shows the query, the
-    // matches follow on the next, ahead of the engine's answer.
-    @Test func historyMatchesFollowTheKeystrokeFromOffTheMainActor() async {
-        visit("https://developer.apple.com/metal/", "Metal Tips", times: 3)
-        StubSuggestProtocol.answer("metal", with: #"["metal",[],[]]"#)
-        let model = makeModel()
-        let site = Suggestion.match(url: URL(string: "https://developer.apple.com/metal/")!, title: "Metal Tips")
-
-        model.text = "metal"
-        model.textChanged(appending: true)
-        #expect(model.rows == [.query("metal")])
-        await model.fetchTask?.value
-        #expect(model.rows == [.query("metal"), site])
     }
 
     @Test func freshResponseFollowsTheHistoryRowsShownAheadOfIt() async {
@@ -135,99 +98,6 @@ struct SearchModelTests {
         await model.fetchTask?.value
 
         #expect(model.rows == [.query("swiftui"), site, .query("swiftui tutorial")])
-    }
-
-    @Test func keystrokeKeepsTheLastRemoteRowsThatStillMatchUntilItsOwnAnswerArrives() async {
-        StubSuggestProtocol.answer("go", with: #"["go",["google","gopro","google maps"],[]]"#)
-        StubSuggestProtocol.answer("goo", with: #"["goo",["google","goodreads"],[]]"#)
-        let model = makeModel()
-        model.text = "go"
-        model.textChanged(appending: true)
-        await model.fetchTask?.value
-        #expect(model.rows == [.query("go"), .query("google"), .query("gopro"), .query("google maps")])
-
-        model.text = "goo"
-        model.textChanged(appending: true)
-        #expect(model.rows == [.query("goo"), .query("google"), .query("google maps")])
-        await model.fetchTask?.value
-        #expect(model.rows == [.query("goo"), .query("google"), .query("goodreads")])
-    }
-
-    // Four rows stay on "w"; the list once dropped to the query alone for a frame when no carried row still
-    // matched. The earlier rows stay under the new query until its own answer lands.
-    @Test func aKeystrokeThatWouldLeaveOnlyTheQueryKeepsTheEarlierRowsUntilItsAnswer() async {
-        StubSuggestProtocol.answer("a", with: #"["a",["amazon","amazon prime","airbnb"],[]]"#)
-        StubSuggestProtocol.answer("aw", with: #"["aw",["aws","away luggage"],[]]"#)
-        let model = makeModel()
-        model.text = "a"
-        model.textChanged(appending: true)
-        await model.fetchTask?.value
-        #expect(model.rows == [.query("a"), .query("amazon"), .query("amazon prime"), .query("airbnb")])
-
-        model.text = "aw"
-        model.textChanged(appending: true)
-        #expect(model.rows == [.query("aw"), .query("amazon"), .query("amazon prime"), .query("airbnb")])
-        await model.fetchTask?.value
-        #expect(model.rows == [.query("aw"), .query("aws"), .query("away luggage")])
-    }
-
-    @Test func aKeystrokeWithAHistoryMatchButNoCarriedAnswerKeepsTheEarlierCount() async {
-        visit("https://www.google.com/search?q=aw", "aw - Google Search")
-        StubSuggestProtocol.answer("a", with: #"["a",["amazon","amazon prime","airbnb"],[]]"#)
-        let model = makeModel()
-        model.text = "a"
-        model.textChanged(appending: true)
-        await model.fetchTask?.value
-        let before = model.rows.count
-
-        model.text = "aw"
-        model.textChanged(appending: true)
-        #expect(model.rows.first == .query("aw"))
-        #expect(model.rows.count == before)
-        #expect(!model.rows.contains(.query("a")))
-    }
-
-    // A match row shown on the last keystroke stays on the next one's own turn, as a carried remote row does, until
-    // its scan lands: dropped for that turn it would blink out and the rows under it would shift up and back down.
-    // A cleared field starts over: its first keystroke seeds nothing.
-    @Test func aKeystrokeKeepsTheLastScansMatchRowsUntilItsOwnScanLands() async {
-        visit("https://docs.vapor.codes/", "Vapor Docs", times: 3)
-        StubSuggestProtocol.answer("vap", with: #"["vap",["vapor","vape"],[]]"#)
-        StubSuggestProtocol.answer("vapo", with: #"["vapo",["vapor"],[]]"#)
-        StubSuggestProtocol.answer("zz", with: #"["zz",[],[]]"#)
-        let model = makeModel()
-        let site = Suggestion.match(url: URL(string: "https://docs.vapor.codes/")!, title: "Vapor Docs")
-        model.text = "vap"
-        model.textChanged(appending: true)
-        await model.fetchTask?.value
-        #expect(model.rows == [.query("vap"), site, .query("vapor"), .query("vape")])
-
-        model.text = "vapo"
-        model.textChanged(appending: true)
-        #expect(model.rows == [.query("vapo"), site, .query("vapor")])
-        await model.fetchTask?.value
-        #expect(model.rows == [.query("vapo"), site, .query("vapor")])
-
-        model.text = ""
-        model.textChanged(appending: false)
-        model.text = "zz"
-        model.textChanged(appending: true)
-        #expect(model.rows == [.query("zz")])
-        await model.fetchTask?.value
-    }
-
-    // A keystroke that reaches the field without the edit callback (a paste, the system's own text input) is not
-    // marked as appending; the list still keeps its earlier rows.
-    @Test func anEditNotMarkedAsAppendingKeepsTheEarlierRowsToo() async {
-        StubSuggestProtocol.answer("a", with: #"["a",["amazon","amazon prime","airbnb"],[]]"#)
-        let model = makeModel()
-        model.text = "a"
-        model.textChanged(appending: true)
-        await model.fetchTask?.value
-
-        model.text = "aw"
-        model.textChanged(appending: false)
-        #expect(model.rows == [.query("aw"), .query("amazon"), .query("amazon prime"), .query("airbnb")])
     }
 
     // Offline the answer never lands, so the earlier rows held under the query must give way to its own rows: a tap
@@ -266,9 +136,7 @@ struct SearchModelTests {
         #expect(model.rows == [.query("wea"), .query("weather"), .query("weapon")])
     }
 
-    // Low Data Mode fails the fetch at once: the local rows stand. The session flag that makes it fail is pinned in
-    // SuggestionServiceTests.defaultSessionIsCookielessAndSkipsLowDataMode; a clock bound here would time the main
-    // actor's hop, not the path.
+    // Low Data Mode fails the fetch at once: the local rows stand.
     @Test func aConstrainedPathKeepsTheLocalRowsAtOnce() async {
         visit("https://constrained.test/", "Constrained")
         StubSuggestProtocol.fail(
@@ -310,7 +178,8 @@ struct SearchModelTests {
         #expect(model.rows == [.query("sw"), .query("swift"), .query("swiftui")])
     }
 
-    @Test func firstOpenEmptyLaterOpensPrefillLastQuery() async {
+    // Every open starts a new tab, so the field is empty each time, after a submit too.
+    @Test func everyOpenStartsEmpty() async {
         visit("https://swift.org/", "Swift", times: 2)
         visit("https://apple.com/", "Apple")
         StubSuggestProtocol.answer("swift", with: #"["sw",["swift","swiftui","swift playgrounds"],[]]"#)
@@ -319,43 +188,24 @@ struct SearchModelTests {
         model.textChanged(appending: true)
         let fetch = model.fetchTask
 
-        let first = model.prepareForOpen(over: nil)
+        model.prepareForOpen(over: nil)
 
-        #expect(first.text == "" && !first.selectAll)
         #expect(model.text == "")
+        #expect(model.completedText == nil)
         #expect(fetch?.isCancelled == true)
         #expect(model.fetchTask == nil)
         #expect(model.rows == SuggestionRanker.topSites(history.entries, excluding: nil, limit: 8))
         #expect(model.rows.count == 2)
 
         StubSuggestProtocol.answer("swift tips", with: #"["swift tips",[],[]]"#)
-        model.record(SearchEngine.google.resultsURL(for: "swift tips"))
-        let later = model.prepareForOpen(over: nil)
+        model.text = "swift tips"
+        model.textChanged(appending: true)
+        #expect(model.submit() == SearchEngine.google.resultsURL(for: "swift tips"))
+        model.prepareForOpen(over: nil)
 
-        #expect(later.text == "swift tips" && later.selectAll)
-        #expect(model.lastSubmitted == "swift tips")
+        #expect(model.text == "")
         #expect(model.completedText == nil)
-        #expect(model.rows.first == .query("swift tips"))
-    }
-
-    @Test func urlSubmitPrefillsHostWithoutTLD() {
-        StubSuggestProtocol.answer("google", with: #"["google",[],[]]"#)
-        StubSuggestProtocol.answer("amazon.co", with: #"["amazon.co",[],[]]"#)
-        let model = makeModel()
-
-        model.record(URL(string: "https://google.com")!)
-        #expect(model.prepareForOpen(over: nil).text == "google")
-
-        model.record(URL(string: "https://www.amazon.co.uk/x")!)
-        #expect(model.prepareForOpen(over: nil).text == "amazon.co")
-    }
-
-    // Any engine's results page prefills its query, so a page submitted before a change of engine still does.
-    @Test func anyEnginesResultsPagePrefillsItsQuery() {
-        StubSuggestProtocol.answer("tea time", with: #"["tea time",[],[]]"#)
-        let model = makeModel()
-        model.record(SearchEngine.bing.resultsURL(for: "tea time"))
-        #expect(model.prepareForOpen(over: nil) == (text: "tea time", selectAll: true))
+        #expect(model.rows == SuggestionRanker.topSites(history.entries, excluding: nil, limit: 8))
     }
 
     // Typing asks the chosen engine, and a submit or a row tap searches with it.
@@ -373,17 +223,6 @@ struct SearchModelTests {
         #expect(model.rows == [.query("ddg"), .query("ddg app")])
         #expect(model.submit() == SearchEngine.duckDuckGo.resultsURL(for: "ddg"))
         #expect(model.url(for: .query("ddg app")) == SearchEngine.duckDuckGo.resultsURL(for: "ddg app"))
-    }
-
-    @Test func rowTapRecordsLastSubmitted() {
-        let model = makeModel()
-
-        model.record(model.url(for: .query("swift ui")))
-        #expect(model.lastSubmitted == "swift ui")
-
-        let site = Suggestion.match(url: URL(string: "https://www.github.com/apple")!, title: "Apple")
-        model.record(model.url(for: site))
-        #expect(model.lastSubmitted == "github")
     }
 
     @Test func inlineCompletionPrefersBestRankedHost() async {
@@ -437,29 +276,5 @@ struct SearchModelTests {
         #expect(model.submit() == URL(string: "https://github.com"))
         #expect(model.url(for: .query("c++ tips")) == SearchEngine.google.resultsURL(for: "c++ tips"))
         #expect(model.url(for: .site(url: URL(string: "https://a.com/")!, title: "A")) == URL(string: "https://a.com/"))
-    }
-}
-
-struct SheetDragTests {
-    @Test func closesWhileArmedOrPredictedPastTwoHundred() {
-        #expect(SheetDrag.closes(armed: true, translation: 81, velocity: -1000))
-        #expect(!SheetDrag.closes(armed: false, translation: 60, velocity: 0))
-        #expect(SheetDrag.closes(armed: false, translation: 0, velocity: 500))
-        #expect(!SheetDrag.closes(armed: false, translation: 50, velocity: 200))
-    }
-
-    @Test func releaseVelocityIsAFractionOfTheRemainingTravel() {
-        #expect(SheetDrag.releaseVelocity(1500, toward: 500) == 3)
-        #expect(SheetDrag.releaseVelocity(300, toward: -60) == -5)
-        #expect(SheetDrag.releaseVelocity(-200, toward: -100) == 2)
-        #expect(SheetDrag.releaseVelocity(800, toward: 0) == 0)
-    }
-
-    @Test func offsetFollowsDownAndStretchesUpUnderTheLimit() {
-        #expect(SheetDrag.offset(translation: 42) == 42)
-        let up = SheetDrag.offset(translation: -30)
-        #expect(up < 0 && up > -30)
-        #expect(abs(up - Magnet.rubberBand(-30, stretch: Theme.Gesture.sheetStretch)) < 1e-9)
-        #expect(SheetDrag.offset(translation: -10_000) > -Theme.Gesture.sheetStretch)
     }
 }

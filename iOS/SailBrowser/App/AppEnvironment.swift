@@ -1,3 +1,4 @@
+import CloudKit
 import SwiftUI
 import WebKit
 
@@ -18,6 +19,7 @@ import WebKit
     let sessions: SessionStore
     let snapshots: SnapshotStore
     let favicons: FaviconStore
+    let macTabs: MacTabsStore
     let ui: UIState
     let haptics: HapticsEngine
     let blocker: ContentBlocker
@@ -98,6 +100,8 @@ import WebKit
             blocker: blocker, sessions: sessions, haptics: haptics, prewarms: { [unowned energy] in !energy.isReduced })
         snapshots = SnapshotStore(directories: directories)
         favicons = FaviconStore(directories: directories)
+        macTabs = MacTabsStore(
+            directories: directories, container: CKContainer(identifier: "iCloud.com.harunkkhan.browser"))
 
         haptics.keepsWarm = { [unowned energy] in !energy.isReduced }
         favicons.allowsNetwork = { [unowned energy] in !energy.isReduced }
@@ -133,6 +137,9 @@ import WebKit
         attachActiveController()
         pool.prewarm()
         Task {
+            await macTabs.start()
+        }
+        Task {
             await blocker.compileMissingLists()
             pool.trackers.domains = await TrackerDomains.bundled()
         }
@@ -144,6 +151,9 @@ import WebKit
     func sceneWillEnterForeground() {
         pool.pressureEnded()
         downloads.resumeExpired()
+        Task {
+            await macTabs.fetch()
+        }
         let active = browser.activeTabID
         let removed = browser.runArchiveSweep()
         guard let active, removed.contains(active) else { return }
@@ -186,6 +196,7 @@ import WebKit
             await sites.flush()
             await downloads.flush()
             await sessions.flush()
+            await macTabs.flush()
             await capture?.value
             await snapshots.flush()
             guard flush == flushNumber else { return }
@@ -330,6 +341,14 @@ import WebKit
         zoomIn(on: tab.id)
     }
 
+    func openFromMac(_ url: URL) {
+        captureOutgoingSnapshot()
+        let tab = browser.openTab(url: url)
+        ui.close()
+        haptics.fire(.macTabsPick)
+        zoomIn(on: tab.id)
+    }
+
     // The privacy policy is a page on the web (App Store guideline 5.1.1(i)): the Settings row opens it in a new tab in
     // front, and the sheet gives way to the page as it does to a restored tab.
     func openPrivacyPolicy() {
@@ -378,15 +397,6 @@ import WebKit
         for controller in pool.controllers(onHost: host) where !isPrivate || pool.isPrivate(controller.tabID) {
             controller.reload()
         }
-    }
-
-    // The tracker footer's tap: turning blocking off is "restore original page".
-    func setTrackerBlocking(_ on: Bool, forHost host: String) {
-        haptics.fire(on ? .settingsChange : .restorePage)
-        var settings = siteSettings(forHost: host)
-        settings.blocksTrackers = on
-        setSiteSettings(settings, forHost: host)
-        ui.close()
     }
 
     // A saved deny wins, a saved allow needs no asking, and only the kinds still unset are asked for. A page off screen

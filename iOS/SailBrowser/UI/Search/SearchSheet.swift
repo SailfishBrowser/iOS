@@ -42,7 +42,7 @@ struct SearchSheet: View {
                 }
             }
             .scrollDisabled(true)
-            .frame(height: Theme.Metrics.suggestionRowHeight * CGFloat(Theme.Metrics.suggestionRowCount))
+            .frame(maxHeight: Theme.Metrics.suggestionRowHeight * CGFloat(Theme.Metrics.suggestionRowCount))
             .transaction { transaction in
                 if !transaction.recentSwipeMotion {
                     transaction.animation = nil

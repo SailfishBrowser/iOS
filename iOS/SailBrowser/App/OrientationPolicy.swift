@@ -2,8 +2,8 @@ import Observation
 import UIKit
 import WebKit
 
-// Which pages are in element fullscreen, and so whether the app may rotate. The app delegate answers with `mask`;
-// the plist stays portrait-only. A page is tracked for its life, so every fullscreen episode is heard, however the
+// Which pages are in element fullscreen, and so whether the phone may rotate; an iPad turns freely. The app delegate
+// answers with `mask`; the phone's plist key stays portrait-only. A page is tracked for its life, so every fullscreen episode is heard, however the
 // card that shows it comes and goes.
 @Observable final class OrientationPolicy {
     private struct Tracked {
@@ -11,7 +11,9 @@ import WebKit
         let observation: NSKeyValueObservation
     }
 
-    static let shared = OrientationPolicy()
+    static let shared = OrientationPolicy(turnsFreely: UIDevice.current.userInterfaceIdiom == .pad)
+
+    let turnsFreely: Bool
 
     private var fullscreenWebViews: Set<ObjectIdentifier> = []
     // WebKit's fullscreen hierarchy holds a page mid-episode; a dead entry goes, id and all, before it can pin the mask
@@ -27,8 +29,12 @@ import WebKit
         !fullscreenWebViews.isEmpty
     }
 
+    init(turnsFreely: Bool) {
+        self.turnsFreely = turnsFreely
+    }
+
     var mask: UIInterfaceOrientationMask {
-        isElementFullscreen ? .allButUpsideDown : .portrait
+        turnsFreely ? .all : isElementFullscreen ? .allButUpsideDown : .portrait
     }
 
     func track(_ webView: WKWebView) {
@@ -67,7 +73,7 @@ import WebKit
     private func changed(_ webView: WKWebView) {
         let state = webView.fullscreenState
         record(state, of: ObjectIdentifier(webView))
-        guard let window = webView.window,
+        guard !turnsFreely, let window = webView.window,
             state == .notInFullscreen || state == .exitingFullscreen && Theme.Fullscreen.returnsToPortraitOnExitStart
         else { return }
         restorePortrait(window)

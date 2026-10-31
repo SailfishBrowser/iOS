@@ -20,9 +20,12 @@ expect CFBundleName Sailfish
 expect ITSAppUsesNonExemptEncryption false
 expect LSApplicationCategoryType public.app-category.utilities
 expect UIDeviceFamily.0 1
-expect UIDeviceFamily.1 "<missing>"
+expect UIDeviceFamily.1 2
+expect UIDeviceFamily.2 "<missing>"
 expect UISupportedInterfaceOrientations.0 UIInterfaceOrientationPortrait
 expect UISupportedInterfaceOrientations.1 "<missing>"
+expect UISupportedInterfaceOrientations~ipad.3 UIInterfaceOrientationLandscapeRight
+expect UISupportedInterfaceOrientations~ipad.4 "<missing>"
 expect CFBundleURLTypes.0.CFBundleURLSchemes.0 http
 expect CFBundleURLTypes.0.CFBundleURLSchemes.1 https
 

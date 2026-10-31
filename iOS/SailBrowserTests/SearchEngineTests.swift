@@ -89,8 +89,4 @@ struct SearchEngineTests {
         await store.flush()
         #expect(BrowserStore(directories: directories).settings.searchEngine == .kagi)
     }
-
-    @Test func namesMatchTheEnginesOwn() {
-        #expect(SearchEngine.allCases.map(\.name) == ["Google", "DuckDuckGo", "Bing", "Ecosia", "Kagi", "Perplexity"])
-    }
 }

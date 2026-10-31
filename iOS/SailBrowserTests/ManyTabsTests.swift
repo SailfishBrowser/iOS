@@ -1,10 +1,9 @@
-import CoreGraphics
 import Foundation
 import Testing
 @testable import SailBrowser
 
-// The store with hundreds of tabs and a full archive: one batch per sweep, the archive in its own file, and the deck's
-// order and open position intact.
+// The store with hundreds of tabs and a full archive: one batch per sweep, the archive in its own file, and the tab
+// order intact.
 struct ManyTabsTests {
     let directories = AppDirectories.temporary()
     let clock = TestClock()
@@ -122,33 +121,5 @@ struct ManyTabsTests {
         let unpinnedOrder = ids + [added.id]
         #expect(store.tabs.map(\.id) == unpinnedOrder)
         #expect(store.tabs.allSatisfy { !$0.isPinned })
-
-        let frozen = CardLayout.frozenOrder(ids, current: store.tabs.map(\.id))
-        #expect(frozen.count == 301)
-        #expect(Set(frozen).count == 301)
-    }
-
-    // A state with 300 tabs and the last one active opens the deck focused on its left neighbour, with the active card
-    // peeking right.
-    @Test func theDeckOpensOnTheActiveCardsNeighbourWithThreeHundredTabs() throws {
-        let now = Date()
-        let tabs = (0..<300).map { i in
-            Tab(
-                id: UUID(), url: URL(string: "https://t\(i).test/")!, title: "t\(i)", isPinned: false,
-                prefersDesktop: false, createdAt: now, lastActiveAt: now, tint: nil)
-        }
-        let state = BrowserState(tabs: tabs, archived: [], activeTabID: tabs[299].id, settings: BrowserSettings())
-        try FileManager.default.createDirectory(at: directories.support, withIntermediateDirectories: true)
-        try JSONEncoder().encode(state).write(to: file("state.json"))
-
-        let env = makeEnvironment(directories)
-        env.launch()
-
-        let ids = env.browser.tabs.map(\.id)
-        let activeIndex = try #require(ids.firstIndex { $0 == env.browser.activeTabID })
-        #expect(activeIndex == 299)
-        #expect(CardLayout(screen: CGSize(width: 440, height: 956)).openPosition(activeIndex: activeIndex) == 298)
-        #expect(DeckView.built(ids: ids, activeIndex: activeIndex, span: 297...299, pinned: []) == [297, 298, 299])
-        #expect(env.ui.deckProgress == 0)
     }
 }

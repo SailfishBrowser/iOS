@@ -5,10 +5,12 @@ struct SearchEngineView: View {
     let selection: Binding<SearchEngine>
 
     var body: some View {
-        Picker("Search Engine", selection: selection) {
+        Picker(selection: selection) {
             ForEach(SearchEngine.allCases, id: \.self) { engine in
                 Text(engine.name).tag(engine)
             }
+        } label: {
+            SettingsLabel("Search Engine", systemImage: "magnifyingglass", color: .blue)
         }
         .pickerStyle(.navigationLink)
     }

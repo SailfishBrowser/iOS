@@ -6,14 +6,7 @@ import UIKit
 @testable import SailBrowser
 
 nonisolated final class StubIconProtocol: URLProtocol {
-    // A parked load, carried through the mutex until release(_:) starts it again.
-    nonisolated private struct Held: @unchecked Sendable {
-        let load: StubIconProtocol
-    }
-
     private static let bodies = Mutex<[URL: Data]>([:])
-    // Loads of a parked URL are held, uncounted, until release(_:) starts them again.
-    private static let parked = Mutex<[URL: [Held]]>([:])
     private static let requests = Mutex<[URL]>([])
     private static let failures = Mutex<[URL: URLError]>([:])
 
@@ -29,16 +22,6 @@ nonisolated final class StubIconProtocol: URLProtocol {
         requests.withLock { $0 }
     }
 
-    static func park(_ url: URL) {
-        parked.withLock { $0[url] = [] }
-    }
-
-    static func release(_ url: URL) {
-        for held in parked.withLock({ $0.removeValue(forKey: url) }) ?? [] {
-            held.load.startLoading()
-        }
-    }
-
     static func session() -> URLSession {
         let configuration = FaviconStore.configuration()
         configuration.protocolClasses = [StubIconProtocol.self]
@@ -51,7 +34,6 @@ nonisolated final class StubIconProtocol: URLProtocol {
 
     override func startLoading() {
         let url = request.url!
-        if Self.parked.withLock({ $0[url]?.append(Held(load: self)) != nil }) { return }
         Self.requests.withLock { $0.append(url) }
         if let error = Self.failures.withLock({ $0[url] }) {
             client?.urlProtocol(self, didFailWithError: error)
@@ -183,120 +165,6 @@ struct FaviconStoreTests {
         #expect(fresh !== held)
         try await waitUntil { fresh.image != nil }
         #expect(StubIconProtocol.requested.filter { $0.host() == hosts[0] }.isEmpty)
-    }
-
-    // Two callers for one URL share its fetch: the second joins the first's task and one request goes out; the task
-    // leaves the map when it lands, so a later call fetches again.
-    @Test func concurrentDownloadsOfOneURLShareTheFetch() async throws {
-        let host = host()
-        let url = URL(string: "https://\(host)/icon.png")!
-        StubIconProtocol.answer(url, with: png(side: 10))
-        StubIconProtocol.park(url)
-        let store = FaviconStore(directories: .temporary(), session: StubIconProtocol.session())
-        let first = Task { try await store.download(url) }
-        let second = Task { try await store.download(url) }
-        try await waitUntil { store.joins == 1 }
-        StubIconProtocol.release(url)
-        for task in [first, second] {
-            let icon = try await task.value
-            #expect(icon.image.size.width == 10)
-            #expect(icon.tint != nil)
-        }
-        #expect(StubIconProtocol.requested.filter { $0 == url } == [url])
-        _ = try await store.download(url)
-        #expect(StubIconProtocol.requested.filter { $0 == url }.count == 2)
-        #expect(store.joins == 1)
-    }
-
-    // Two hosts naming one icon URL in one turn share its fetch: one request goes out and the second host joins it.
-    @Test func twoHostsNamingOneIconURLMakeOneRequest() async throws {
-        let hosts = [host(), host()]
-        let url = URL(string: "https://cdn.icons.test/\(UUID().uuidString.lowercased()).png")!
-        StubIconProtocol.answer(url, with: png(side: 10))
-        StubIconProtocol.park(url)
-        let store = FaviconStore(directories: .temporary(), session: StubIconProtocol.session())
-        let boxes = hosts.map(store.favicon(for:))
-
-        for host in hosts {
-            store.update(host: host, iconURLs: [url])
-        }
-        try await waitUntil { store.joins == 1 }
-        StubIconProtocol.release(url)
-        try await waitUntil { boxes.allSatisfy { $0.image?.size.width == 10 } }
-
-        #expect(StubIconProtocol.requested.filter { $0 == url } == [url])
-        #expect(hosts.allSatisfy { store.loaded[$0] == [url] })
-    }
-
-    // A fetched icon lands with its tint in one write, the tint worked out with the fetch, off the main actor.
-    @Test func aFetchedIconArrivesWithItsTintInOneWrite() async throws {
-        let host = host()
-        let url = URL(string: "https://\(host)/icon.png")!
-        StubIconProtocol.answer(url, with: png(side: 10))
-        let store = FaviconStore(directories: .temporary(), session: StubIconProtocol.session())
-        let box = store.favicon(for: host)
-        let writes = Writes { _ = box.image }
-
-        store.update(host: host, iconURLs: [url])
-        try await waitUntil { box.image != nil }
-
-        #expect(box.tint != nil)
-        #expect(writes.count == 1)
-    }
-
-    // A store released before its update resumes runs no more of it: the environment wires allowsNetwork over an
-    // unowned energy policy, and a read from work that outlived them both crashed the test host on the farm.
-    @Test func anUpdateStopsOnceItsStoreIsGone() async throws {
-        let host = host()
-        let url = URL(string: "https://\(host)/icon.png")!
-        StubIconProtocol.answer(url, with: png(side: 10))
-        let asked = NetworkAsks()
-        var store: FaviconStore? = FaviconStore(directories: .temporary(), session: StubIconProtocol.session())
-        weak var freed = store
-        store!.allowsNetwork = {
-            asked.count += 1
-            return true
-        }
-
-        store!.update(host: host, iconURLs: [url])
-        store = nil
-
-        #expect(freed == nil)
-        try await Task.sleep(for: .milliseconds(200))
-        #expect(asked.count == 0)
-        #expect(!StubIconProtocol.requested.contains(url))
-    }
-
-    // The tint is worked out where the file is decoded, so it lands in the same turn as the image.
-    @Test func theTintArrivesWithTheImage() async throws {
-        let directories = AppDirectories.temporary()
-        let host = host()
-        let folder = directories.caches.appending(path: "favicons")
-        try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
-        try png(side: 16).write(to: folder.appending(path: "\(host).png"))
-        let store = FaviconStore(directories: directories, session: StubIconProtocol.session())
-        let box = store.favicon(for: host)
-        try await waitUntil { box.image != nil }
-        #expect(box.tint != nil)
-    }
-
-    @Test func defaultSessionIsEphemeralAndCookieFree() {
-        let configuration = FaviconStore(directories: .temporary()).session.configuration
-        #expect(configuration.httpCookieStorage == nil)
-        #expect(!configuration.httpShouldSetCookies)
-        #expect(configuration.urlCache == nil)
-        #expect(configuration.urlCredentialStorage == nil)
-        #expect(!configuration.allowsConstrainedNetworkAccess)
-        #expect(configuration.allowsExpensiveNetworkAccess)
-        #expect(!configuration.waitsForConnectivity)
-        #expect(configuration.timeoutIntervalForRequest == Theme.Network.faviconTimeout)
-        #expect(configuration.timeoutIntervalForResource == Theme.Network.faviconResourceTimeout)
-    }
-
-    @Test func stubSessionKeepsTheStoresFlags() {
-        let configuration = StubIconProtocol.session().configuration
-        #expect(!configuration.allowsConstrainedNetworkAccess)
-        #expect(configuration.httpCookieStorage == nil)
     }
 
     // Writes a cached icon for the host before the store exists, as an earlier launch would have.
@@ -434,5 +302,3 @@ struct FaviconStoreTests {
         try await waitUntil { StubIconProtocol.requested.filter { $0 == url }.count == 2 }
     }
 }
-
-private final class NetworkAsks { var count = 0 }

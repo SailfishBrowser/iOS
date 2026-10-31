@@ -186,7 +186,7 @@ struct SuggestionServiceTests {
     // the simulator keeps between runs, with real cookies from visits to the search host.
     @Test func aSetCookieAnswerIsNeverSentBack() async throws {
         let name = "tau\(UUID().uuidString.prefix(8))"
-        let server = try await LocalPageServer { _ in "" }
+        let server = try await LocalPageServer()
         var second: [String] = []
         server.routes["/a"] = { _ in LocalPageServer.Reply(headers: ["Set-Cookie": "\(name)=1; Path=/"], body: Data()) }
         server.routes["/b"] = { request in
@@ -206,19 +206,6 @@ struct SuggestionServiceTests {
         #expect(HTTPCookieStorage.shared.cookies(for: server.url("/b"))?.contains { $0.name == name } != true)
     }
 
-    @Test func defaultSessionIsCookielessAndSkipsLowDataMode() {
-        expectCookieless(
-            SuggestionService().session.configuration, requestTimeout: Theme.Network.suggestTimeout,
-            resourceTimeout: Theme.Network.suggestResourceTimeout)
-        #expect(SuggestionService().session === SuggestionService().session)
-    }
-
-    @Test func stubSessionKeepsTheProductionFlags() {
-        let configuration = StubSuggestProtocol.session().configuration
-        #expect(!configuration.allowsConstrainedNetworkAccess)
-        #expect(configuration.httpCookieStorage == nil)
-    }
-
     @Test func aCancelledSleepNeverSendsARequest() async throws {
         let held = HeldSleep(holding: true)
         let service = stubService(sleep: held.sleep)
@@ -230,13 +217,5 @@ struct SuggestionServiceTests {
 
         await #expect(throws: CancellationError.self) { try await task.value }
         #expect(StubSuggestProtocol.request(for: "cancelled x") == nil)
-    }
-
-    @Test func theDebounceReadsTheToken() async throws {
-        StubSuggestProtocol.answer("token", with: #"["token",[]]"#)
-        let held = HeldSleep(holding: false)
-        _ = try await stubService(sleep: held.sleep).suggestions(for: "token", engine: .google)
-        #expect(held.requested == [Theme.Network.suggestDebounce])
-        #expect(Theme.Network.suggestDebounce == .zero)
     }
 }

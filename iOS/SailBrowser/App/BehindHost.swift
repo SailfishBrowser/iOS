@@ -5,6 +5,14 @@ extension EnvironmentValues {
     @Entry var screenInsets = EdgeInsets()
 }
 
+extension UIWindow {
+    // The safe area with its top lowered under the window controls of a windowed iPad app, so the page's top band
+    // clears them as it clears a status bar.
+    var screenInsets: UIEdgeInsets {
+        edgeInsets(for: .safeArea(cornerAdaptation: .vertical))
+    }
+}
+
 @Observable final class ScreenInsets {
     var value = EdgeInsets()
 }
@@ -121,7 +129,7 @@ final class BehindController: UIViewController {
         veil.frame = view.bounds
         host.view.frame = window.bounds
         layoutCard(nil)
-        let safe = window.safeAreaInsets
+        let safe = window.screenInsets
         for band in [stagingBand, veilBand] {
             band.frame = CGRect(x: 0, y: 0, width: view.bounds.width, height: safe.top + Theme.Metrics.privateBandExtra)
             band.layout(safeTop: safe.top)
@@ -164,7 +172,7 @@ final class BehindController: UIViewController {
             + (Theme.Metrics.switcherShrinkScale - Theme.Metrics.browsingShrinkScale) * deckProgress
         let scale = 1 + (rest - 1) * shrink
         let frame = view.convert(window.bounds, from: window)
-        let clipTop = window.safeAreaInsets.top * shrink * (1 - deckProgress)
+        let clipTop = window.screenInsets.top * shrink * (1 - deckProgress)
         let height = frame.height - clipTop
         let bounds = CGRect(x: 0, y: clipTop, width: frame.width, height: height)
         let position = CGPoint(x: frame.midX, y: frame.minY + clipTop + height / 2 - (1 - scale) * height / 2)

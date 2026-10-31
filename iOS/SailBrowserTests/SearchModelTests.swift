@@ -59,7 +59,7 @@ struct SearchModelTests {
         }
         let model = SearchModel(history: history, service: stubService(), engine: { .google })
 
-        _ = model.prepareForOpen(over: URL(string: pages[4].0)!)
+        model.prepareForOpen(over: URL(string: pages[4].0)!)
 
         #expect(model.rows == pages[0..<4].reversed().map { .site(url: URL(string: $0.0)!, title: $0.1) })
     }
@@ -178,7 +178,8 @@ struct SearchModelTests {
         #expect(model.rows == [.query("sw"), .query("swift"), .query("swiftui")])
     }
 
-    @Test func firstOpenEmptyLaterOpensPrefillLastQuery() async {
+    // Every open starts a new tab, so the field is empty each time, after a submit too.
+    @Test func everyOpenStartsEmpty() async {
         visit("https://swift.org/", "Swift", times: 2)
         visit("https://apple.com/", "Apple")
         StubSuggestProtocol.answer("swift", with: #"["sw",["swift","swiftui","swift playgrounds"],[]]"#)
@@ -187,43 +188,24 @@ struct SearchModelTests {
         model.textChanged(appending: true)
         let fetch = model.fetchTask
 
-        let first = model.prepareForOpen(over: nil)
+        model.prepareForOpen(over: nil)
 
-        #expect(first.text == "" && !first.selectAll)
         #expect(model.text == "")
+        #expect(model.completedText == nil)
         #expect(fetch?.isCancelled == true)
         #expect(model.fetchTask == nil)
         #expect(model.rows == SuggestionRanker.topSites(history.entries, excluding: nil, limit: 8))
         #expect(model.rows.count == 2)
 
         StubSuggestProtocol.answer("swift tips", with: #"["swift tips",[],[]]"#)
-        model.record(SearchEngine.google.resultsURL(for: "swift tips"))
-        let later = model.prepareForOpen(over: nil)
+        model.text = "swift tips"
+        model.textChanged(appending: true)
+        #expect(model.submit() == SearchEngine.google.resultsURL(for: "swift tips"))
+        model.prepareForOpen(over: nil)
 
-        #expect(later.text == "swift tips" && later.selectAll)
-        #expect(model.lastSubmitted == "swift tips")
+        #expect(model.text == "")
         #expect(model.completedText == nil)
-        #expect(model.rows.first == .query("swift tips"))
-    }
-
-    @Test func urlSubmitPrefillsHostWithoutTLD() {
-        StubSuggestProtocol.answer("google", with: #"["google",[],[]]"#)
-        StubSuggestProtocol.answer("amazon.co", with: #"["amazon.co",[],[]]"#)
-        let model = makeModel()
-
-        model.record(URL(string: "https://google.com")!)
-        #expect(model.prepareForOpen(over: nil).text == "google")
-
-        model.record(URL(string: "https://www.amazon.co.uk/x")!)
-        #expect(model.prepareForOpen(over: nil).text == "amazon.co")
-    }
-
-    // Any engine's results page prefills its query, so a page submitted before a change of engine still does.
-    @Test func anyEnginesResultsPagePrefillsItsQuery() {
-        StubSuggestProtocol.answer("tea time", with: #"["tea time",[],[]]"#)
-        let model = makeModel()
-        model.record(SearchEngine.bing.resultsURL(for: "tea time"))
-        #expect(model.prepareForOpen(over: nil) == (text: "tea time", selectAll: true))
+        #expect(model.rows == SuggestionRanker.topSites(history.entries, excluding: nil, limit: 8))
     }
 
     // Typing asks the chosen engine, and a submit or a row tap searches with it.
@@ -241,17 +223,6 @@ struct SearchModelTests {
         #expect(model.rows == [.query("ddg"), .query("ddg app")])
         #expect(model.submit() == SearchEngine.duckDuckGo.resultsURL(for: "ddg"))
         #expect(model.url(for: .query("ddg app")) == SearchEngine.duckDuckGo.resultsURL(for: "ddg app"))
-    }
-
-    @Test func rowTapRecordsLastSubmitted() {
-        let model = makeModel()
-
-        model.record(model.url(for: .query("swift ui")))
-        #expect(model.lastSubmitted == "swift ui")
-
-        let site = Suggestion.match(url: URL(string: "https://www.github.com/apple")!, title: "Apple")
-        model.record(model.url(for: site))
-        #expect(model.lastSubmitted == "github")
     }
 
     @Test func inlineCompletionPrefersBestRankedHost() async {

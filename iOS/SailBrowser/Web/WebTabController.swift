@@ -113,6 +113,9 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     @ObservationIgnored private var lastPullHaptic: ContinuousClock.Instant?
     @ObservationIgnored private var pullClock: FrameClock?
     @ObservationIgnored private var readerableTask: Task<Void, Never>?
+    // The page's text for a summary, read once the page settles, for the URL it was read on.
+    @ObservationIgnored private(set) var pageContent: PageContent?
+    @ObservationIgnored private var contentTask: Task<Void, Never>?
     @ObservationIgnored private(set) var errorView: LoadErrorView?
     @ObservationIgnored private(set) var errorClearTask: Task<Void, Error>?
     // The error page drawn when it is shown, updated or re-inset, so a capture at a gesture's start reads a picture.
@@ -369,8 +372,10 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         }
         readerableTask?.cancel()
         isReaderable = false
+        clearContent()
         if !webView.isLoading {
             checkReaderable()
+            readContent()
         }
     }
 
@@ -382,6 +387,33 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
             guard !Task.isCancelled else { return }
             self?.isReaderable = readerable
         }
+    }
+
+    // Beside the readable check, superseded the same way. A page whose text cannot be read has none to summarize.
+    private func readContent() {
+        contentTask?.cancel()
+        contentTask = Task { [weak self, webView] in
+            // A page whose process has ended has no URL until it reloads.
+            guard let url = webView.url else { return }
+            let content: PageContent
+            do {
+                content = try await ReaderExtractor.content(in: webView)
+            } catch {
+                Self.logger.error("Content read failed: \(error, privacy: .public)")
+                content = PageContent(url: url, title: "", text: "", language: nil)
+            }
+            guard !Task.isCancelled else { return }
+            self?.contentRead(content)
+        }
+    }
+
+    private func contentRead(_ content: PageContent) {
+        pageContent = content
+    }
+
+    private func clearContent() {
+        contentTask?.cancel()
+        pageContent = nil
     }
 
     func closeReader() {
@@ -619,6 +651,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         }
         readerableTask?.cancel()
         isReaderable = false
+        clearContent()
         endPullRefresh()
         awaitReveal()
         if loadError != nil, navigatedSinceError {
@@ -694,6 +727,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         Task { [translator] in await translator.detect() }
         discoverFavicon(for: url)
         checkReaderable()
+        readContent()
     }
 
     private func nextPresentation() async {

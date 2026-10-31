@@ -4,7 +4,7 @@ import Testing
 struct ReaderDocumentTests {
     @Test func theShellCarriesThePolicyTheStylesheetAndEscapedText() {
         let article = ReaderArticle(
-            title: "A <b>&</b>", byline: "By \"Q\"", html: "<p>Body</p>", lang: "fr", dir: "rtl")
+            title: "A <b>&</b>", byline: "By \"Q\"", html: "<p>Body</p>", text: "Body", lang: "fr", dir: "rtl")
         let document = ReaderController.document(for: article)
         #expect(document.contains(
             #"<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src https: data:; style-src 'unsafe-inline'">"#))
@@ -18,7 +18,7 @@ struct ReaderDocumentTests {
 
     @Test func aLongTitleIsEscapedWhole() {
         let title = String(repeating: "<b>&", count: 25_000)
-        let article = ReaderArticle(title: title, byline: nil, html: "<p>Body</p>", lang: nil, dir: nil)
+        let article = ReaderArticle(title: title, byline: nil, html: "<p>Body</p>", text: "Body", lang: nil, dir: nil)
         let document = ReaderController.document(for: article)
         let shown = document.split(separator: "<title>")[1].split(separator: "</title>")[0]
         #expect(!shown.contains("<"))

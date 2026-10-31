@@ -187,7 +187,7 @@ nonisolated extension TranslationSession: PageTranslationSession {
             "\(Self.script)\nreturn sailTranslate.\(function);", arguments: arguments, in: nil, contentWorld: Self.world)
     }
 
-    private static func recognizedLanguage(_ text: String) -> Locale.Language? {
+    static func recognizedLanguage(_ text: String) -> Locale.Language? {
         let recognizer = NLLanguageRecognizer()
         recognizer.processString(text)
         let best = recognizer.languageHypotheses(withMaximum: 1).first

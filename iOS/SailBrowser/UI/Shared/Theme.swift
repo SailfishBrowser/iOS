@@ -128,7 +128,7 @@ enum Theme {
             case .barSwipeSettle: barSwipeSettle
             case .permissionAnswer: permissionSheet
             case .tabStackFlick: tabStackFlickSettle
-            case .deckSettle, .cardReturn: deckSnap
+            case .cardReturn: deckSnap
             // The thrown card coasts from the finger (archiveFlyOffMinimumCoast); the rest close the gap.
             case .cardThrow: archiveGapClose
             case .deckEmptied: emptyDeckAppear
@@ -171,7 +171,6 @@ enum Theme {
             // The pinch presses the tab stack button, so it plays the button's tap.
             case .tabStackTap, .pinchSwitcher: .switcherOpened
             case .tabStackFlick, .archiveRestore, .macTabsPick: .tabSwitched
-            case .deckSettle: .cardSettled
             case .plusTap: .searchOpened
             case .chevronTap: .menuOpened
             // The eyes tap as their neighbour the clear button and the menu's toggles do; the footage cannot show it.
@@ -225,7 +224,7 @@ enum Theme {
         // The step is the pull tick's step; every other event has one pattern.
         static func feedback(for event: HapticEvent, step: Int = 0) -> HapticFeedback {
             switch event {
-            case .switcherOpened, .tabSwitched, .cardSettled, .buttonTap, .searchOpened, .menuOpened, .tabOpened,
+            case .switcherOpened, .tabSwitched, .buttonTap, .searchOpened, .menuOpened, .tabOpened,
                 .recentArmed:
                 Haptic.medium
             case .longPress: Haptic.rigid
@@ -309,7 +308,7 @@ enum Theme {
             case .foregroundRaise, .chevronLongPress, .archiveOpen, .macTabsOpen, .settingsOpen, .archiveDelete,
                 .settingsChange, .sheetDone, .webEdgeSwipe:
                 .system
-            case .tabStackTap, .tabStackFlick, .pinchSwitcher, .deckCardTap, .deckBackgroundTap, .deckScroll, .deckSettle,
+            case .tabStackTap, .tabStackFlick, .pinchSwitcher, .deckCardTap, .deckBackgroundTap, .deckScroll,
                 .cardLift, .cardThrow, .cardReturn, .deckEmptied, .plusTap, .searchTyping, .searchClear, .suggestionTap,
                 .searchSubmit, .searchDragDismiss, .searchDragReturn, .searchDimTap, .searchGrabDuringOpen, .pullRelease, .barHide, .barShow,
                 .chevronTap, .menuDragDismiss, .menuDragReturn, .menuGrabDuringOpen, .menuDimTap, .menuNav,
@@ -505,9 +504,9 @@ enum Theme {
         static let leftStepFraction: CGFloat = 0.039
         static let olderDepthScales: [CGFloat] = [0.98, 0.93]
         static let cardPlaceholderFavicon: CGFloat = 40
-        static let cardHeaderGap: CGFloat = 10
+        nonisolated static let cardHeaderGap: CGFloat = 10
         static let cardHeaderHeight: CGFloat = 24
-        static let cardHeaderFavicon: CGFloat = 20
+        nonisolated static let cardHeaderFavicon: CGFloat = 20
         static let cardHeaderFaviconCorner: CGFloat = 4
         static let missingFaviconCorner: CGFloat = 5
 
@@ -774,7 +773,6 @@ enum Theme {
         nonisolated static let decelerationNormal: CGFloat = 0.998
         nonisolated static let decelerationFast: CGFloat = 0.99
         nonisolated static let deckStretch: CGFloat = 0.5
-        nonisolated static let deckMaxFlickCards = 2
         nonisolated static let deckSettledDistance: CGFloat = 0.05
         nonisolated static let liftStretch: CGFloat = 40
         nonisolated static let sheetStretch: CGFloat = 60

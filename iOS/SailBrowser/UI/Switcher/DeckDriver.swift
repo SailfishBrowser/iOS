@@ -59,11 +59,7 @@ import SwiftUI
     private(set) var flickIDs: [UUID] = []
     private(set) var outOfStack: UUID?
     @ObservationIgnored private(set) var previous: CGFloat = 0
-    @ObservationIgnored private(set) var motion: DeckMotion? {
-        didSet { landing = nil }
-    }
-    // Plays when the motion visibly lands, within the settled distance of its target, not at the spring's rest.
-    @ObservationIgnored private var landing: (() -> Void)?
+    @ObservationIgnored private(set) var motion: DeckMotion?
     @ObservationIgnored private var baseShift: [UUID: CGFloat] = [:]
     @ObservationIgnored private var departure: (() -> Void)?
     // Thrown cards whose tab is archived while their coast is still on screen; they fly on until it ends.
@@ -343,18 +339,17 @@ import SwiftUI
     // A departing card keeps its place while the rest close the gap, until `archive` runs.
     func run(
         _ next: DeckMotion, base: [UUID: CGFloat] = [:], departing: (card: UUID, archive: () -> Void)? = nil,
-        at start: ContinuousClock.Instant = .now, landing: (() -> Void)? = nil
+        at start: ContinuousClock.Instant = .now
     ) {
         finishDeparture()
         motion = next
-        self.landing = landing
         baseShift = base
         if let departing {
             departure = departing.archive
             set(\.departing[departing.card], next.from)
         }
         previous = next.from
-        updateSpan(to: next.to)
+        updateSpan(to: next.glide == nil ? next.to : next.from)
         startClock(at: starting(start))
     }
 
@@ -449,14 +444,16 @@ import SwiftUI
     }
 
     func placement<Header: View>(
-        index: Int, activeIndex: Int, layout: CardLayout, header: Header, coverImage: UIImage?, coverFill: Color,
+        index: Int, activeIndex: Int, isLast: Bool, layout: CardLayout, header: Header, coverImage: UIImage?,
+        coverFill: Color,
         isUnrevealed: Bool, cover: CardCover, tabID: UUID, isPrivate: Bool = false
     ) -> CardPlacement<Header> {
         CardPlacement(
             progress: progress, olderProgress: olderProgress, pair: progress == 0 ? pair : nil,
             flick: progress == 0 ? flick : nil,
             position: position(for: tabID), lift: lifts[tabID] ?? 0,
-            slot: CGFloat(index) + shift[tabID, default: 0], index: index, activeIndex: activeIndex, layout: layout,
+            slot: CGFloat(index) + shift[tabID, default: 0], index: index, activeIndex: activeIndex, isLast: isLast,
+            layout: layout,
             header: header, coverImage: coverImage, coverFill: coverFill, isUnrevealed: isUnrevealed, cover: cover,
             tabID: tabID, isPrivate: isPrivate)
     }
@@ -520,14 +517,15 @@ import SwiftUI
         var settled = false
         if let current = motion {
             let presented = current.presented(at: time)
+            // A glide builds the cards around where it is drawn, as a drag does, not along its whole path.
+            if current.glide != nil {
+                previous = position
+                updateSpan(to: presented.position)
+            }
             set(\.position, presented.position)
             set(\.shift, presented.shift.merging(baseShift, uniquingKeysWith: +))
             trackPage()
-            if let landed = landing, abs(presented.position - current.to) < Theme.Gesture.deckSettledDistance {
-                landing = nil
-                landed()
-            }
-            if current.curve.isSettled(at: time) {
+            if current.isSettled(at: time) {
                 motion = nil
                 settled = true
             }

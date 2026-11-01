@@ -438,9 +438,17 @@ enum Theme {
     enum Metrics {
         static let barHeight: CGFloat = 42
         static let cardWidthFraction: CGFloat = 0.70
+        // A window this wide shows the deck's cards at the narrower fraction, the same shape and centre, so the next
+        // card shows beside the focused one.
+        static let wideDeckWidth: CGFloat = 700
+        static let wideCardWidthFraction: CGFloat = 0.50
         static let cardCorner: CGFloat = 15
         static let displayCorner: CGFloat = 55
+        static let padDisplayCorner: CGFloat = 18
         static let searchSheetCorner: CGFloat = 38
+        // The page menu, the permission prompt, the search field and its rows keep to a centred column no wider than
+        // the system's form sheet, so on a wide window they read at a phone's measure.
+        static let sheetColumnWidth: CGFloat = 580
         static let searchSheetAboveKeyboard: CGFloat = 304
         static let pillSize = CGSize(width: 76, height: 39)
         static let controlSize: CGFloat = 35

@@ -101,9 +101,17 @@ final class PermissionPromptController: UIViewController, UIGestureRecognizerDel
 
     override func viewIsAppearing(_ animated: Bool) {
         super.viewIsAppearing(animated)
-        let height = Theme.Metrics.permissionSheetHeight + view.safeAreaInsets.bottom
-        container.frame = CGRect(x: 0, y: view.bounds.height - height, width: view.bounds.width, height: height)
+        view.layoutIfNeeded()
         open()
+    }
+
+    // Laid out by bounds and centre under the motion's transform, so a rotation or a window resize keeps the sheet on
+    // the bottom edge, in the sheets' column.
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        let height = Theme.Metrics.permissionSheetHeight + view.safeAreaInsets.bottom
+        container.bounds = CGRect(x: 0, y: 0, width: min(view.bounds.width, Theme.Metrics.sheetColumnWidth), height: height)
+        container.center = CGPoint(x: view.bounds.midX, y: view.bounds.height - height / 2)
     }
 
     func present(over webView: WKWebView) {

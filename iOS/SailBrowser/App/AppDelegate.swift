@@ -1,6 +1,6 @@
 import UIKit
 
-// Replaces the plist key at runtime; the plist stays portrait-only for check-release.sh. Scene delegate at iOS 27.
+// Replaces the plist key at runtime; the phone's plist key stays portrait-only for check-release.sh. Scene delegate at iOS 27.
 final class AppDelegate: NSObject, UIApplicationDelegate {
     // Set by the app's init: the delegate adaptor is not reachable there, and a push that launches the app in the
     // background may never build the scene.

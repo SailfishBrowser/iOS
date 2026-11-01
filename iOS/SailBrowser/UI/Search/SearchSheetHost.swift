@@ -74,6 +74,9 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
     let field: SearchField
     private var keyboardBottom: NSLayoutConstraint!
     private var detachedTop: NSLayoutConstraint!
+    // Holds the sheet's top under the status bar where the keyboard leaves less than the sheet's height, as on a short
+    // window or a landscape iPad mini, and the sheet shows the rows that fit.
+    private var lowestTop: NSLayoutConstraint!
     private var containerHeight: NSLayoutConstraint!
     private var capsuleWidth: NSLayoutConstraint!
     private var capsuleHeight: NSLayoutConstraint!
@@ -210,6 +213,10 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
         let sheetView = sheet.view!
         keyboardBottom = sheetView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor)
         detachedTop = sheetView.topAnchor.constraint(equalTo: view.topAnchor)
+        detachedTop.priority = .required - 1
+        lowestTop = sheetView.topAnchor.constraint(greaterThanOrEqualTo: view.topAnchor)
+        let sheetHeight = sheetView.heightAnchor.constraint(equalToConstant: Theme.Metrics.searchSheetAboveKeyboard)
+        sheetHeight.priority = .required - 1
         containerHeight = container.heightAnchor.constraint(equalToConstant: 0)
         capsuleWidth = capsule.widthAnchor.constraint(equalToConstant: 0)
         capsuleHeight = capsule.heightAnchor.constraint(equalToConstant: 0)
@@ -219,6 +226,8 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
         plusLead = plus.view.centerXAnchor.constraint(equalTo: capsule.leadingAnchor)
         NSLayoutConstraint.activate([
             keyboardBottom,
+            lowestTop,
+            sheetHeight,
             containerHeight,
             tracker.topAnchor.constraint(equalTo: view.topAnchor),
             tracker.leadingAnchor.constraint(equalTo: view.leadingAnchor),
@@ -226,7 +235,6 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
             tracker.bottomAnchor.constraint(equalTo: view.bottomAnchor),
             sheetView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             sheetView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            sheetView.heightAnchor.constraint(equalToConstant: Theme.Metrics.searchSheetAboveKeyboard),
             container.topAnchor.constraint(equalTo: sheetView.topAnchor),
             container.leadingAnchor.constraint(equalTo: tracker.frameLayoutGuide.leadingAnchor),
             container.trailingAnchor.constraint(equalTo: tracker.frameLayoutGuide.trailingAnchor),
@@ -260,6 +268,19 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
                 copy.heightAnchor.constraint(equalToConstant: Theme.Metrics.barHeight),
             ]
         })
+    }
+
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        guard let window = view.window, lowestTop.constant != window.screenInsets.top else { return }
+        lowestTop.constant = window.screenInsets.top
+    }
+
+    // The keyboard's rest is learnt per window size: a turn or a resize moves it, and the next open rides the keyboard
+    // again until it is known.
+    override func viewWillTransition(to size: CGSize, with coordinator: any UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        restTop = nil
     }
 
     #if DEBUG
@@ -407,7 +428,8 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
 
     private func shapeField(asPill pill: Bool) {
         let full = CGSize(
-            width: view.bounds.width - 2 * Theme.Metrics.searchFieldInset, height: Theme.Metrics.searchFieldHeight)
+            width: min(view.bounds.width, Theme.Metrics.sheetColumnWidth) - 2 * Theme.Metrics.searchFieldInset,
+            height: Theme.Metrics.searchFieldHeight)
         let size = pill ? Theme.Metrics.pillSize : full
         fieldWidth.constant = full.width
         capsuleWidth.constant = size.width
@@ -1173,7 +1195,8 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
         rowReturn?.stop()
         rowReturn = nil
         rowHeld = false
-        let swipe = RowSwipe(width: container.bounds.width, from: recentSwipe.offset(for: row))
+        let swipe = RowSwipe(
+            width: min(container.bounds.width, Theme.Metrics.sheetColumnWidth), from: recentSwipe.offset(for: row))
         rowSwipe = swipe
         recentSwipe.follow(row, swipe)
     }

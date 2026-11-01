@@ -42,7 +42,7 @@ struct SearchSheet: View {
                 }
             }
             .scrollDisabled(true)
-            .frame(height: Theme.Metrics.suggestionRowHeight * CGFloat(Theme.Metrics.suggestionRowCount))
+            .frame(maxHeight: Theme.Metrics.suggestionRowHeight * CGFloat(Theme.Metrics.suggestionRowCount))
             .transaction { transaction in
                 if !transaction.recentSwipeMotion {
                     transaction.animation = nil
@@ -55,7 +55,8 @@ struct SearchSheet: View {
         #if DEBUG
         .debugAction(.suggestionTap) { onSelect(model.rows[0]) }
         #endif
-        .frame(height: Theme.Metrics.searchSheetAboveKeyboard, alignment: .top)
+        .frame(maxWidth: Theme.Metrics.sheetColumnWidth)
+        .frame(maxHeight: Theme.Metrics.searchSheetAboveKeyboard, alignment: .top)
     }
 }
 

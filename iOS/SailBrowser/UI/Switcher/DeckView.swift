@@ -97,14 +97,9 @@ struct DeckView: View {
                     commitArchive(tabs[index].id, velocity: 0, layout: layout, playing: true)
                 }
                 #endif
-                // The driver is shared and outlives these; a swipe or flick still moving lands before its owner is replaced.
                 // The driver's writes take no animation from whatever transaction this runs in.
                 withoutAnimation {
-                    env.pager?.finish()
-                    env.flick?.finish()
-                    driver.adopt(layout)
-                    env.pager = TabPager(env: env, driver: driver, layout: layout)
-                    env.flick = TabStackFlick(env: env, layout: layout)
+                    adopt(layout)
                     if env.ui.deckProgress != 0 {
                         frozenOrder = tabs.map(\.id)
                         open(layout)
@@ -115,6 +110,10 @@ struct DeckView: View {
                 if let controller = env.activeController {
                     activate(controller, progress: env.ui.deckProgress)
                 }
+            }
+            // A turn or a window resize gives the deck a new layout; the swipe and the flick take it the same way.
+            .onChange(of: proxy.size) { _, size in
+                withoutAnimation { adopt(CardLayout(screen: size)) }
             }
             #if DEBUG
             .onDisappear {
@@ -236,6 +235,15 @@ struct DeckView: View {
             return isPrivate ? Color(uiColor: Theme.Palette.privateSubmitCover) : Theme.Palette.submittedPagePlaceholder
         }
         return tint.map { Color(red: $0.red, green: $0.green, blue: $0.blue) } ?? Theme.Palette.newTabPlaceholder
+    }
+
+    // The driver is shared and outlives these; a swipe or flick still moving lands before its owner is replaced.
+    private func adopt(_ layout: CardLayout) {
+        env.pager?.finish()
+        env.flick?.finish()
+        driver.adopt(layout)
+        env.pager = TabPager(env: env, driver: driver, layout: layout)
+        env.flick = TabStackFlick(env: env, layout: layout)
     }
 
     private func open(_ layout: CardLayout) {

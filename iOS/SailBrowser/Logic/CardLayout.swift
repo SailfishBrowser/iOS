@@ -1,6 +1,7 @@
 import CoreGraphics
 import Foundation
 import SwiftUI
+import UIKit
 
 nonisolated struct CardTransform: Equatable, Sendable {
     var offset: CGSize
@@ -55,8 +56,12 @@ nonisolated struct CardLayout: Sendable {
     @MainActor init(screen: CGSize, barHeight: CGFloat = Theme.Metrics.barTotalHeight) {
         self.screen = screen
         barTop = screen.height - barHeight
-        let width = Theme.Metrics.cardWidthFraction * screen.width
-        cardSize = CGSize(width: width, height: Theme.Metrics.cardHeightFraction * screen.height)
+        let widthFraction = screen.width >= Theme.Metrics.wideDeckWidth
+            ? Theme.Metrics.wideCardWidthFraction : Theme.Metrics.cardWidthFraction
+        let heightFraction = Theme.Metrics.cardHeightFraction * widthFraction / Theme.Metrics.cardWidthFraction
+        let topFraction = Theme.Metrics.cardTopFraction + (Theme.Metrics.cardHeightFraction - heightFraction) / 2
+        let width = widthFraction * screen.width
+        cardSize = CGSize(width: width, height: heightFraction * screen.height)
         stride = Theme.Metrics.rightStepFraction * width
         pageStride = Theme.Metrics.barSwipeCardScale * screen.width + Theme.Metrics.barSwipeGap
         focusedLeft = Theme.Metrics.focusedLeftFraction * screen.width
@@ -64,13 +69,14 @@ nonisolated struct CardLayout: Sendable {
         leftStep = Theme.Metrics.leftStepFraction * width
         depthScales = Theme.Metrics.olderDepthScales
         slotCenter = CGPoint(
-            x: focusedLeft + width / 2, y: Theme.Metrics.cardTopFraction * screen.height + cardSize.height / 2)
+            x: focusedLeft + width / 2, y: topFraction * screen.height + cardSize.height / 2)
         let button = Theme.Metrics.tabStackButtonSize
         tabStackButtonFrame = CGRect(
             x: Theme.Metrics.tabStackButtonCenterX - button.width / 2,
             y: screen.height - Theme.Metrics.barControlCenterFromBottom - button.height / 2,
             width: button.width, height: button.height)
-        displayCorner = Theme.Metrics.displayCorner
+        displayCorner = UIDevice.current.userInterfaceIdiom == .pad
+            ? Theme.Metrics.padDisplayCorner : Theme.Metrics.displayCorner
         cardCorner = Theme.Metrics.cardCorner
         buttonCorner = Theme.Metrics.tabStackThumbnailCorner
         thumbnailWidth = Theme.Metrics.tabStackThumbnailSize.width

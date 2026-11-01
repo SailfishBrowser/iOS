@@ -116,6 +116,8 @@ enum Theme {
         // fade out over 8 frames, and back in over 8 when it turns off.
         nonisolated static let privateToggle = MotionToken.curve(duration: 0.19, .linear)
         nonisolated static let privateRowsFade = MotionToken.curve(duration: 8.0 / 60, .linear)
+        // The page's fold settles from a release, and plays back from the card, on this spring.
+        nonisolated static let fold = MotionToken.spring(duration: 0.32, bounce: 0)
 
         static func token(for interaction: Interaction) -> MotionToken? {
             switch interaction {
@@ -715,6 +717,27 @@ enum Theme {
         // The reader's type in the system serif, substituted into reader.css; the title at the platform's Title 1 size.
         static let readerBody = WebFont(family: "ui-serif", size: 19, weight: 400)
         static let readerTitle = WebFont(family: "ui-serif", size: 28, weight: 700)
+    }
+
+    // The page folds like paper over its summary card.
+    enum Fold {
+        // A pinch in from scale 1 to this folds the page closed; a pinch out on the card to openScale opens it.
+        nonisolated static let closedScale: CGFloat = 0.45
+        nonisolated static let openScale: CGFloat = 1.8
+        // A release projects the progress this far ahead at its speed, so a flick either way can beat the position.
+        nonisolated static let projection: CGFloat = 0.12
+        nonisolated static let strips = 4
+        // The eye's distance in points: m34 is -1 over it.
+        nonisolated static let perspective: CGFloat = 900
+        // The folded bundle fades out over the progress past this.
+        nonisolated static let fadeStart: CGFloat = 0.9
+        // A strip's shade at its valley crease when it stands on end; its ridge edge stays clear.
+        static let creaseShade: CGFloat = 0.45
+        // What shows where the strips have folded away, around the card: the app's own backdrop.
+        static let backdrop = UIColor(Palette.searchBackdrop)
+        static let cardMargin: CGFloat = 16
+        static let cardPadding: CGFloat = 20
+        static let cardSpacing: CGFloat = 12
     }
 
     enum Gesture {

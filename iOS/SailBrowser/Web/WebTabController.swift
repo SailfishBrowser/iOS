@@ -56,6 +56,11 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     @ObservationIgnored var onFinish: ((URL, String) -> Void)?
     // A pinch in at the page's minimum zoom reached the threshold; the environment says whether it opened the switcher.
     @ObservationIgnored var onPinchToSwitcher: (() -> Bool)?
+    // A pinch in at the page's minimum zoom where the model can summarize; the environment says whether it opened the
+    // summary.
+    @ObservationIgnored var onPinchToSummary: (() -> Bool)?
+    // The fold has played back open, so the summary is closed.
+    @ObservationIgnored var onSummaryClosed: (() -> Void)?
     // WebKit's zoom under a pinch that opened the switcher has ended, bounce included: the page is still for its picture.
     @ObservationIgnored var onPinchZoomEnded: (() -> Void)?
     @ObservationIgnored var onOpenWindow: ((WKWebView, URL) -> Void)?
@@ -113,6 +118,26 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     @ObservationIgnored private var lastPullHaptic: ContinuousClock.Instant?
     @ObservationIgnored private var pullClock: FrameClock?
     @ObservationIgnored private var readerableTask: Task<Void, Never>?
+    // The page's text for a summary, read once the page settles, for the URL it was read on.
+    @ObservationIgnored private(set) var pageContent: PageContent?
+    @ObservationIgnored private var contentTask: Task<Void, Never>?
+    // One per tab. A finished summary is kept for the URL it was made for, so a second pinch on the page shows it at once.
+    let summarizer = PageSummarizer()
+    @ObservationIgnored private var summarizedURL: URL?
+    // A fold that began before the page's text was read starts its summary when the text lands.
+    @ObservationIgnored private var awaitsContent = false
+    // The fold over the page, from the pinch's begin until it has played back open.
+    @ObservationIgnored private var fold: PageFoldView?
+    @ObservationIgnored private var foldCard: UIHostingController<SummaryCard>?
+    // The scroll view whose zoom pinch is off for the fold's life.
+    @ObservationIgnored private var foldZoom: UIScrollView?
+    @ObservationIgnored private var foldClock: FrameClock?
+    @ObservationIgnored private var foldProgress: CGFloat = 0
+    @ObservationIgnored private var foldAnchor: CGFloat = 0
+    // Where the fold was when the pinch out on the card began.
+    @ObservationIgnored private var foldPinchStart: CGFloat = 0
+    @ObservationIgnored private var isFoldPinching = false
+    @ObservationIgnored private var foldCrossedHalf = false
     @ObservationIgnored private(set) var errorView: LoadErrorView?
     @ObservationIgnored private(set) var errorClearTask: Task<Void, Error>?
     // The error page drawn when it is shown, updated or re-inset, so a capture at a gesture's start reads a picture.
@@ -213,10 +238,26 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     // for that end (scrollViewDidEndZooming), or for the fingers on a page WebKit is not zooming. The scroll view read
     // is the page's own, or the reader's while it shows; a pinch still in progress as the reader's close releases its
     // page has nothing to read and does nothing.
+    //
+    // Where the model can summarize, a pinch that begins at minimum zoom on a page with a URL and no error folds the
+    // page over its summary instead, and the switcher stays on the tab stack button and the bar swipe.
     @objc func pinched(_ pinch: UIPinchGestureRecognizer) {
-        guard let scrollView = pinch.view === webView ? webView.scrollView : reader.page?.scrollView else { return }
+        if isFoldPinching {
+            foldFollowed(pinch)
+            return
+        }
+        guard let page = pinch.view === webView ? webView : reader.page else { return }
+        let scrollView = page.scrollView
         let atMinimum = PinchToSwitcher.isAtMinimumZoom(
             zoomScale: scrollView.zoomScale, minimumZoomScale: scrollView.minimumZoomScale)
+        if pinch.state == .began, atMinimum, webView.url != nil, loadError == nil, PageSummarizer.isAvailable,
+            onPinchToSummary?() == true
+        {
+            beginFold(over: page, anchor: pinch.location(in: page).y)
+            isFoldPinching = true
+            foldFollowed(pinch)
+            return
+        }
         switch pinch.state {
         case .began:
             pinchTracker.began(atMinimumZoom: atMinimum)
@@ -233,6 +274,160 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         default:
             break
         }
+    }
+
+    // The pinch that began the fold drives it closed under the fingers; the switcher's haptic marks the halfway point,
+    // where a release at rest completes it.
+    private func foldFollowed(_ pinch: UIPinchGestureRecognizer) {
+        switch pinch.state {
+        case .began, .changed:
+            follow(PageFold.progress(closingScale: pinch.scale), anchor: pinch.location(in: fold).y)
+            if foldProgress >= 0.5, !foldCrossedHalf {
+                foldCrossedHalf = true
+                haptics.fire(.pinchSwitcher)
+            }
+        case .ended, .cancelled, .failed:
+            isFoldPinching = false
+            release(velocity: PageFold.progressVelocity(scaleVelocity: pinch.velocity, closing: true))
+        default:
+            break
+        }
+    }
+
+    // A pinch out on the card drives the same fold open from where it is.
+    @objc private func cardPinched(_ pinch: UIPinchGestureRecognizer) {
+        switch pinch.state {
+        case .began:
+            foldClock?.stop()
+            foldClock = nil
+            foldPinchStart = foldProgress
+        case .changed:
+            follow(
+                foldPinchStart - 1 + PageFold.progress(openingScale: pinch.scale), anchor: pinch.location(in: fold).y)
+        case .ended, .cancelled, .failed:
+            release(velocity: PageFold.progressVelocity(scaleVelocity: pinch.velocity, closing: false))
+        default:
+            break
+        }
+    }
+
+    // VoiceOver's Summarize: the fold plays closed with no pinch.
+    func summarize() {
+        guard webView.url != nil, loadError == nil, PageSummarizer.isAvailable, onPinchToSummary?() == true else { return }
+        let page = readerArticle == nil ? webView : reader.page!
+        beginFold(over: page, anchor: page.bounds.midY)
+        settle(to: 1, velocity: 0)
+    }
+
+    // Done and a pinch out released past the halfway point: the one way back.
+    func unfold() {
+        settle(to: 0, velocity: 0)
+    }
+
+    // The summary is closed from outside, as a link from another app lands in a new tab in front: the fold goes at
+    // once, so the page is not left folded under its card with its zoom pinch off.
+    func closeSummary() {
+        guard fold != nil else { return }
+        foldClock?.stop()
+        foldClock = nil
+        settled(at: 0)
+    }
+
+    // The fold sits over the page and the reader, under the band. WebKit's own zoom pinch is cancelled, so the page
+    // stays at rest under the snapshots, and no switcher picture is taken.
+    private func beginFold(over page: WKWebView, anchor: CGFloat) {
+        page.scrollView.pinchGestureRecognizer?.isEnabled = false
+        foldZoom = page.scrollView
+        let look = MenuLook(isLight: Theme.Palette.isLight(barTint, in: webView.traitCollection), tint: nil)
+        let card = UIHostingController(
+            rootView: SummaryCard(
+                title: readerArticle?.title ?? title, summarizer: summarizer, look: look,
+                done: { [unowned self] in
+                    haptics.fire(.sheetDone)
+                    unfold()
+                }))
+        card.safeAreaRegions = []
+        card.view.backgroundColor = .clear
+        let fold = PageFoldView(page: page, card: card.view)
+        let margin = Theme.Fold.cardMargin
+        fold.frame = reader.view.frame
+        fold.cardInsets = UIEdgeInsets(
+            top: safeTop + margin, left: margin, bottom: webView.window!.safeAreaInsets.bottom + margin, right: margin)
+        let pinch = UIPinchGestureRecognizer(target: self, action: #selector(cardPinched))
+        pinch.delegate = self
+        fold.addGestureRecognizer(pinch)
+        reader.view.superview!.insertSubview(fold, aboveSubview: reader.view)
+        self.fold = fold
+        foldCard = card
+        foldCrossedHalf = false
+        haptics.prepare(.pinchSwitcher)
+        follow(0, anchor: anchor)
+        startSummary()
+    }
+
+    // The reader's article, else the text read when the page settled, else the text read now.
+    private func startSummary() {
+        let url = webView.url!
+        if hasSummary, summarizedURL == url { return }
+        summarizedURL = url
+        if let content = readerArticle.map({ ReaderExtractor.content(of: $0, at: url) }) ?? pageContent {
+            summarizer.start(content)
+        } else {
+            summarizer.cancel()
+            awaitsContent = true
+            readContent()
+        }
+    }
+
+    private var hasSummary: Bool {
+        if case .done = summarizer.state { true } else { false }
+    }
+
+    private func follow(_ progress: CGFloat, anchor: CGFloat) {
+        foldProgress = min(1, max(0, progress))
+        foldAnchor = anchor
+        fold!.set(progress: foldProgress, anchor: anchor)
+    }
+
+    private func release(velocity: CGFloat) {
+        settle(to: PageFold.completes(progress: foldProgress, velocity: velocity) ? 1 : 0, velocity: velocity)
+    }
+
+    // A fold that ends open stops a summary still being written; a finished one stays for the next pinch.
+    private func settle(to target: CGFloat, velocity: CGFloat) {
+        guard let fold else { return }
+        if target == 0, !hasSummary {
+            summarizer.cancel()
+        }
+        let spring = Theme.Motion.fold.spring
+        let from = foldProgress
+        let begin = fold.layer.convertTime(CACurrentMediaTime(), from: nil)
+        foldClock?.stop()
+        foldClock = FrameClock(in: fold.layer) { [weak self] now, _ in
+            guard let self else { return false }
+            let time = now - begin
+            guard time < spring.settlingDuration else {
+                foldClock = nil
+                settled(at: target)
+                return false
+            }
+            follow(from + spring.value(target: target - from, initialVelocity: velocity, time: time), anchor: foldAnchor)
+            return true
+        }
+    }
+
+    // Closed, the fold stays at 1 while the card is up; open, it is removed and the summary closes.
+    private func settled(at target: CGFloat) {
+        follow(target, anchor: foldAnchor)
+        guard target == 0 else { return }
+        fold?.removeFromSuperview()
+        fold = nil
+        foldCard = nil
+        isFoldPinching = false
+        awaitsContent = false
+        foldZoom?.pinchGestureRecognizer?.isEnabled = true
+        foldZoom = nil
+        onSummaryClosed?()
     }
 
     func scrollViewDidEndZooming(_ scrollView: UIScrollView, with view: UIView?, atScale scale: CGFloat) {
@@ -369,8 +564,10 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         }
         readerableTask?.cancel()
         isReaderable = false
+        clearContent()
         if !webView.isLoading {
             checkReaderable()
+            readContent()
         }
     }
 
@@ -381,6 +578,43 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
             let readerable = await ReaderExtractor.isReaderable(in: webView)
             guard !Task.isCancelled else { return }
             self?.isReaderable = readerable
+        }
+    }
+
+    // Beside the readable check, superseded the same way, and only where the model can summarize it, so a phone
+    // without the model runs no second Readability pass. A page whose text cannot be read has none to summarize.
+    private func readContent() {
+        contentTask?.cancel()
+        guard PageSummarizer.isAvailable else { return }
+        contentTask = Task { [weak self, webView] in
+            // A page whose process has ended has no URL until it reloads.
+            guard let url = webView.url else { return }
+            let content: PageContent
+            do {
+                content = try await ReaderExtractor.content(in: webView)
+            } catch {
+                Self.logger.error("Content read failed: \(error, privacy: .public)")
+                content = PageContent(url: url, title: "", text: "", language: nil)
+            }
+            guard !Task.isCancelled else { return }
+            self?.contentRead(content)
+        }
+    }
+
+    private func contentRead(_ content: PageContent) {
+        pageContent = content
+        guard awaitsContent else { return }
+        awaitsContent = false
+        summarizedURL = content.url
+        summarizer.start(content)
+    }
+
+    // A navigation clears the page's text and its summary, except one on the card that is up.
+    private func clearContent() {
+        contentTask?.cancel()
+        pageContent = nil
+        if fold == nil {
+            summarizer.cancel()
         }
     }
 
@@ -619,6 +853,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         }
         readerableTask?.cancel()
         isReaderable = false
+        clearContent()
         endPullRefresh()
         awaitReveal()
         if loadError != nil, navigatedSinceError {
@@ -694,6 +929,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         Task { [translator] in await translator.detect() }
         discoverFavicon(for: url)
         checkReaderable()
+        readContent()
     }
 
     private func nextPresentation() async {

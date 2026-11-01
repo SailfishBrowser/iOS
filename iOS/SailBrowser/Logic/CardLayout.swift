@@ -299,8 +299,7 @@ nonisolated struct CardLayout: Sendable {
         return max(0, span.lowerBound)...min(count - 1, span.upperBound)
     }
 
-    func stretched(_ position: CGFloat, count: Int) -> CGFloat {
-        let last = CGFloat(count - 1)
+    static func stretched(_ position: CGFloat, last: CGFloat) -> CGFloat {
         if position < 0 {
             return Magnet.rubberBand(position, stretch: Theme.Gesture.deckStretch)
         }
@@ -327,21 +326,21 @@ nonisolated struct CardLayout: Sendable {
         return hits.max { $0.zIndex < $1.zIndex }?.index
     }
 
-    // The slot nearest the projected aim, at most deckMaxFlickCards from the start, and the finger's velocity
-    // relative to the distance left, or 0 when it points away or almost nothing is left.
-    func snapTarget(start: CGFloat, translation: CGFloat, velocity: CGFloat, slots: [CGFloat]) -> (
-        index: Int, velocity: Double
-    ) {
-        let reach = CGFloat(Theme.Gesture.deckMaxFlickCards)
-        let projected = translation + Magnet.project(velocity: velocity, rate: Theme.Gesture.decelerationNormal)
-        let aim = min(max(start - projected / stride, start - reach), start + reach)
-        var index = 0
-        for (candidate, slot) in slots.enumerated() where abs(slot - aim) <= abs(slots[index] - aim) {
-            index = candidate
+    // A horizontal release at this finger velocity (pt/s): inside the deck it glides; from the stretch past an end
+    // it springs back to that end, at the finger's velocity relative to the distance left, or 0 when it points away.
+    func release(
+        from position: CGFloat, velocity: CGFloat, count: Int, shift: [UUID: CGFloat], start: ContinuousClock.Instant
+    ) -> DeckMotion {
+        let last = CGFloat(count - 1)
+        let speed = -velocity / stride
+        guard position < 0 || position > last else {
+            return DeckMotion(
+                glide: DeckGlide(from: position, velocity: speed, start: start, stride: stride, last: last), shift: shift)
         }
-        let remaining = CGFloat(index) - stretched(start - translation / stride, count: slots.count)
-        let relative = Double(SheetDrag.releaseVelocity(-velocity / stride, toward: remaining))
-        return (index, abs(remaining) < Theme.Gesture.deckSettledDistance || relative < 0 ? 0 : relative)
+        let edge = min(max(position, 0), last)
+        let relative = max(Double(SheetDrag.releaseVelocity(speed, toward: edge - position)), 0)
+        return DeckMotion(
+            from: position, to: edge, shift: shift, velocity: relative, start: start, spring: DeckSnap.release(relative))
     }
 
     // The finger's travel added to the lift the card showed at the lock, so a re-grab of a springing card picks it
@@ -386,8 +385,11 @@ nonisolated struct CardLayout: Sendable {
             }
             remaining.append(CGFloat(remaining.count) + amount)
         }
-        let target = remaining.isEmpty
-            ? 0 : CGFloat(snapTarget(start: position, translation: 0, velocity: 0, slots: remaining).index)
+        // The card drawn nearest the position keeps its place, the lower one on a tie.
+        let nearest = remaining.indices.min { abs(remaining[$0] - position) < abs(remaining[$1] - position) }
+        let target = nearest.map {
+            min(max(position - remaining[$0] + CGFloat($0), 0), CGFloat(remaining.count - 1))
+        } ?? 0
         return DeckArchivePlan(
             shift: closing,
             motion: DeckMotion(
@@ -525,6 +527,8 @@ nonisolated struct DeckSnap: Equatable, Sendable {
 
 nonisolated struct DeckMotion: Equatable, Sendable {
     let curve: DeckSnap
+    // A release that glides draws the position; the curve then closes the shift alone, on the gap close's spring.
+    let glide: DeckGlide?
     let from: CGFloat
     let to: CGFloat
     let shift: [UUID: CGFloat]
@@ -537,17 +541,31 @@ nonisolated struct DeckMotion: Equatable, Sendable {
     ) {
         curve = DeckSnap(
             from: 0, to: 1, velocity: velocity, start: start, spring: spring, points: points.map { $0 * abs(to - from) })
+        glide = nil
         self.from = from
         self.to = to
         self.shift = shift
         self.points = points
     }
 
+    init(glide: DeckGlide, shift: [UUID: CGFloat]) {
+        curve = DeckSnap(from: 0, to: 1, velocity: 0, start: glide.start, spring: DeckSnap.gapClose)
+        self.glide = glide
+        from = glide.from
+        to = glide.end
+        self.shift = shift
+        points = nil
+    }
+
+    func isSettled(at time: ContinuousClock.Instant) -> Bool {
+        curve.isSettled(at: time) && glide?.isSettled(at: time) != false
+    }
+
     func retargeted(to target: CGFloat, at time: ContinuousClock.Instant, spring: Spring) -> DeckMotion? {
-        guard !curve.isSettled(at: time) else { return nil }
+        guard !isSettled(at: time) else { return nil }
         let presented = presented(at: time)
         let distance = target - presented.position
-        let speed = (to - from) * curve.velocity(at: time)
+        let speed = glide?.velocity(at: time) ?? (to - from) * curve.velocity(at: time)
         return DeckMotion(
             from: presented.position, to: target, shift: presented.shift,
             velocity: distance == 0 ? 0 : Double(speed / distance), start: time, spring: spring, points: points)
@@ -555,7 +573,7 @@ nonisolated struct DeckMotion: Equatable, Sendable {
 
     func presented(at time: ContinuousClock.Instant) -> (position: CGFloat, shift: [UUID: CGFloat]) {
         let progress = curve.position(at: time)
-        return (from + (to - from) * progress, shift.mapValues { $0 * (1 - progress) }.filter { $0.value != 0 })
+        return (glide?.position(at: time) ?? from + (to - from) * progress, shift.mapValues { $0 * (1 - progress) }.filter { $0.value != 0 })
     }
 }
 

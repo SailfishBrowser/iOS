@@ -19,6 +19,8 @@ struct DeckView: View {
         let id = UUID()
         let startTime: Date
         let activeIndex: Int
+        // The touch stopped a glide: a tap then only stops the deck, as a touch on a decelerating scroll view does.
+        let caughtGlide: Bool
         var gesture: DeckGesture
         var liftBase: CGFloat = 0
     }
@@ -241,7 +243,7 @@ struct DeckView: View {
     private func open(_ layout: CardLayout) {
         guard let index = orderedTabs.firstIndex(where: { $0.id == env.browser.activeTabID }) else { return }
         let target = layout.openPosition(activeIndex: index)
-        if let motion = driver.motion, !motion.curve.isSettled(at: .now) {
+        if let motion = driver.motion, !motion.isSettled(at: .now) {
             zoom(to: target)
         } else {
             jump(to: target, shift: [:])
@@ -285,12 +287,11 @@ struct DeckView: View {
         tabs.indices.map { CGFloat($0) + driver.shift[tabs[$0].id, default: 0] }
     }
 
-    private func nearestCard(_ tabs: [Tab], layout: CardLayout) -> Int {
-        layout.snapTarget(start: position, translation: 0, velocity: 0, slots: slots(tabs)).index
-    }
-
-    private func settle(_ tabs: [Tab], layout: CardLayout) {
-        snap(to: CGFloat(nearestCard(tabs, layout: layout)), velocity: 0)
+    // A deck let go without a glide rests where it is, back inside its ends, and a gap a grab caught still closes.
+    private func settle(_ tabs: [Tab]) {
+        let rest = min(max(position, 0), CGFloat(tabs.count - 1))
+        guard rest != position || !driver.shift.isEmpty else { return }
+        snap(to: rest, velocity: 0)
     }
 
     private func activate(_ controller: WebTabController, progress: CGFloat) {
@@ -337,13 +338,14 @@ struct DeckView: View {
         driver.finishDeparture()
         let tabs = orderedTabs
         guard let activeIndex = tabs.firstIndex(where: { $0.id == env.browser.activeTabID }) else { return }
+        let caughtGlide = driver.motion?.glide != nil
         if driver.motion != nil {
             jump(to: position, shift: driver.shift)
         }
         let range = layout.visibleRange(from: position, to: position, count: tabs.count)
         let slots = slots(tabs)
         drag = Drag(
-            startTime: value.time, activeIndex: activeIndex,
+            startTime: value.time, activeIndex: activeIndex, caughtGlide: caughtGlide,
             gesture: DeckGesture(
                 start: position,
                 cardIndex: layout.card(
@@ -360,7 +362,7 @@ struct DeckView: View {
         if current.gesture.axis == .vertical, let index = current.gesture.cardIndex {
             returnLift(tabs[index].id, velocity: 0, layout: layout)
         }
-        settle(tabs, layout: layout)
+        settle(tabs)
     }
 
     private func changed(_ value: DragSample, layout: CardLayout) {
@@ -380,7 +382,7 @@ struct DeckView: View {
         switch current.gesture.axis {
         case .horizontal:
             let position = current.gesture.start - translation.width / layout.stride
-            driver.move(to: layout.stretched(position, count: tabs.count))
+            driver.move(to: CardLayout.stretched(position, last: CGFloat(tabs.count - 1)))
         case .vertical:
             if let index = current.gesture.cardIndex {
                 let lift = layout.lift(for: translation.height, from: current.liftBase)
@@ -405,6 +407,10 @@ struct DeckView: View {
         if travel < Theme.Gesture.tapMaxTravel,
             value.time.timeIntervalSince(current.startTime) < Theme.Gesture.tapMaxDuration
         {
+            guard !current.caughtGlide else {
+                settle(tabs)
+                return
+            }
             let range = layout.visibleRange(from: position, to: position, count: tabs.count)
             let slots = slots(tabs)
             let hit = layout.card(
@@ -418,14 +424,16 @@ struct DeckView: View {
         let gesture = current.gesture
         switch gesture.axis {
         case .horizontal:
-            let target = layout.snapTarget(
-                start: gesture.start, translation: gesture.effective(value.translation).width,
-                velocity: value.velocity.width, slots: slots(tabs))
-            snap(to: CGFloat(target.index), velocity: target.velocity)
-            trimSnapshots(tabs)
+            let last = CGFloat(tabs.count - 1)
+            let release = layout.release(
+                from: CardLayout.stretched(
+                    gesture.start - gesture.effective(value.translation).width / layout.stride, last: last),
+                velocity: value.velocity.width, count: tabs.count, shift: driver.shift, start: .now)
+            driver.run(release)
+            trimSnapshots(tabs, keeping: CardLayout.span(from: release.from, to: release.to))
         case .vertical:
             guard let index = gesture.cardIndex else {
-                settle(tabs, layout: layout)
+                settle(tabs)
                 return
             }
             let id = tabs[index].id
@@ -434,12 +442,12 @@ struct DeckView: View {
             else {
                 env.haptics.fire(.cardReturn)
                 returnLift(id, velocity: velocity, layout: layout)
-                settle(tabs, layout: layout)
+                settle(tabs)
                 return
             }
             commitArchive(id, velocity: velocity, layout: layout, playing: !gesture.archive.hasArmed)
         case nil:
-            settle(tabs, layout: layout)
+            settle(tabs)
         }
     }
 
@@ -473,9 +481,9 @@ struct DeckView: View {
         }
     }
 
-    // Every card the snap draws keeps its picture: the span runs from the release to the target.
-    private func trimSnapshots(_ tabs: [Tab]) {
-        var kept = Set(tabs[driver.span.clamped(to: 0...(tabs.count - 1))].map(\.id))
+    // Every card the release draws keeps its picture: the span runs from the release to where it rests.
+    private func trimSnapshots(_ tabs: [Tab], keeping span: ClosedRange<Int>) {
+        var kept = Set(tabs[span.clamped(to: 0...(tabs.count - 1))].map(\.id))
         if let active = env.browser.activeTabID {
             kept.insert(active)
         }

@@ -39,6 +39,74 @@ nonisolated struct DeckCoast: Equatable, Sendable {
     }
 }
 
+// A horizontal release in the deck, as a scroll view without paging decelerates: it coasts at the platform's normal
+// deceleration and rests where it slows under the landed speed. A coast that reaches an end of the deck carries its
+// speed there into a spring about that end, drawn through the end's stretch, and comes back to rest on it.
+nonisolated struct DeckGlide: Equatable, Sendable {
+    let from: CGFloat
+    // Positions per second.
+    let velocity: CGFloat
+    let start: ContinuousClock.Instant
+    // Drawn points per position.
+    let stride: CGFloat
+    let last: CGFloat
+
+    private var restSpeed: CGFloat {
+        Theme.Gesture.landedSpeed / stride
+    }
+
+    private var rest: CGFloat {
+        abs(velocity) <= restSpeed ? from : from + (velocity - copysign(restSpeed, velocity)) / DeckCoast.rate
+    }
+
+    var edge: CGFloat? {
+        rest < 0 ? 0 : rest > last ? last : nil
+    }
+
+    var end: CGFloat {
+        edge ?? rest
+    }
+
+    // The coast loses speed in proportion to the distance it covers.
+    private var edgeSpeed: CGFloat {
+        velocity - DeckCoast.rate * (end - from)
+    }
+
+    private var coastDuration: TimeInterval {
+        guard abs(velocity) > restSpeed else { return 0 }
+        return Double(log(velocity / (edge == nil ? copysign(restSpeed, velocity) : edgeSpeed)) / DeckCoast.rate)
+    }
+
+    func isSettled(at time: ContinuousClock.Instant) -> Bool {
+        let elapsed = (time - start) / .seconds(1)
+        guard elapsed >= coastDuration else { return false }
+        guard edge != nil else { return true }
+        let bounce = elapsed - coastDuration
+        return bounce >= DeckSnap.snap.settlingDuration
+            || abs(raw(at: elapsed) - end) * stride <= Theme.Gesture.landedPoints
+                && abs(velocity(at: time)) * stride <= Theme.Gesture.landedSpeed
+    }
+
+    func velocity(at time: ContinuousClock.Instant) -> CGFloat {
+        let elapsed = (time - start) / .seconds(1)
+        guard elapsed >= coastDuration else { return velocity * exp(-DeckCoast.rate * CGFloat(elapsed)) }
+        guard edge != nil else { return 0 }
+        return DeckSnap.snap.velocity(target: 0, initialVelocity: edgeSpeed, time: elapsed - coastDuration)
+    }
+
+    func position(at time: ContinuousClock.Instant) -> CGFloat {
+        isSettled(at: time) ? end : CardLayout.stretched(raw(at: (time - start) / .seconds(1)), last: last)
+    }
+
+    private func raw(at elapsed: TimeInterval) -> CGFloat {
+        guard elapsed >= coastDuration else {
+            return from + velocity / DeckCoast.rate * (1 - exp(-DeckCoast.rate * CGFloat(elapsed)))
+        }
+        guard edge != nil else { return rest }
+        return end + DeckSnap.snap.value(target: 0, initialVelocity: edgeSpeed, time: elapsed - coastDuration)
+    }
+}
+
 nonisolated enum DeckCurve: Equatable, Sendable {
     case snap(DeckSnap)
     case coast(DeckCoast)

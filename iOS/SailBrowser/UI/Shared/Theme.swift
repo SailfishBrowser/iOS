@@ -742,7 +742,6 @@ enum Theme {
         nonisolated static let decelerationNormal: CGFloat = 0.998
         nonisolated static let decelerationFast: CGFloat = 0.99
         nonisolated static let deckStretch: CGFloat = 0.5
-        nonisolated static let deckMaxFlickCards = 2
         nonisolated static let deckSettledDistance: CGFloat = 0.05
         nonisolated static let liftStretch: CGFloat = 40
         nonisolated static let sheetStretch: CGFloat = 60

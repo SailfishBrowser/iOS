@@ -30,6 +30,7 @@ struct DeckView: View {
     @State private var frozenOrder: [UUID]?
     @State private var drag: Drag?
     @State private var ghosts: [Ghost] = []
+    @State private var lastMove = LastMove()
     #if DEBUG
     @State private var hooksOwner = UUID()
     #endif
@@ -368,6 +369,7 @@ struct DeckView: View {
 
     private func changed(_ value: DragSample, layout: CardLayout) {
         guard var current = drag else { return }
+        lastMove.note(value)
         let tabs = orderedTabs
         switch current.gesture.lock(value.translation) {
         case .horizontal:
@@ -429,7 +431,8 @@ struct DeckView: View {
             let release = layout.release(
                 from: CardLayout.stretched(
                     gesture.start - gesture.effective(value.translation).width / layout.stride, last: last),
-                velocity: value.velocity.width, count: tabs.count, shift: driver.shift, start: .now)
+                velocity: lastMove.hasRested(at: value) ? 0 : value.velocity.width, count: tabs.count,
+                shift: driver.shift, start: .now)
             driver.run(release)
             trimSnapshots(tabs, keeping: CardLayout.span(from: release.from, to: release.to))
         case .vertical:
@@ -492,6 +495,23 @@ struct DeckView: View {
             kept.insert(previous)
         }
         env.snapshots.trim(keeping: kept)
+    }
+}
+
+// When the finger last moved, so a finger that rested before lifting lets go at rest: SwiftUI's drag keeps the last
+// move's velocity however long the finger rests. A reference outside observation, so a move re-renders nothing.
+private final class LastMove {
+    private var translation = CGSize.zero
+    private var time = Date.distantPast
+
+    func note(_ value: DragSample) {
+        guard value.translation != translation else { return }
+        translation = value.translation
+        time = value.time
+    }
+
+    func hasRested(at release: DragSample) -> Bool {
+        release.translation == translation && release.time.timeIntervalSince(time) >= Theme.Gesture.flickStill
     }
 }
 

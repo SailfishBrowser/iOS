@@ -339,7 +339,7 @@ struct DeckView: View {
         driver.finishDeparture()
         let tabs = orderedTabs
         guard let activeIndex = tabs.firstIndex(where: { $0.id == env.browser.activeTabID }) else { return }
-        let caughtGlide = driver.motion?.glide != nil
+        let caughtGlide = driver.motion?.glide.map { !$0.isSettled(at: .now) } ?? false
         if driver.motion != nil {
             jump(to: position, shift: driver.shift)
         }

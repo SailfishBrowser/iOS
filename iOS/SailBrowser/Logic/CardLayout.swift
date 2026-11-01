@@ -574,7 +574,8 @@ nonisolated struct DeckMotion: Equatable, Sendable {
     }
 
     func isSettled(at time: ContinuousClock.Instant) -> Bool {
-        curve.isSettled(at: time) && glide?.isSettled(at: time) != false
+        guard let glide else { return curve.isSettled(at: time) }
+        return glide.isSettled(at: time) && (shift.isEmpty || curve.isSettled(at: time))
     }
 
     func retargeted(to target: CGFloat, at time: ContinuousClock.Instant, spring: Spring) -> DeckMotion? {

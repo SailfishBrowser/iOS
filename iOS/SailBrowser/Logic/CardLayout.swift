@@ -325,6 +325,17 @@ nonisolated struct CardLayout: Sendable {
         return position
     }
 
+    // The position that draws at this one, a drag's start when it catches the deck in the stretch.
+    static func unstretched(_ position: CGFloat, last: CGFloat) -> CGFloat {
+        if position < 0 {
+            return Magnet.rubberBandInverse(position, stretch: Theme.Gesture.deckStretch)
+        }
+        if position > last {
+            return last + Magnet.rubberBandInverse(position - last, stretch: Theme.Gesture.deckStretch)
+        }
+        return position
+    }
+
     // The topmost card drawn under the point at this zoom, so a tap mid-zoom takes the card the finger is on.
     func card(
         at point: CGPoint, activeIndex: Int, position: CGFloat, progress: CGFloat, olderProgress: CGFloat,

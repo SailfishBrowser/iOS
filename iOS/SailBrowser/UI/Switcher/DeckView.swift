@@ -348,7 +348,7 @@ struct DeckView: View {
         drag = Drag(
             startTime: value.time, activeIndex: activeIndex, caughtGlide: caughtGlide,
             gesture: DeckGesture(
-                start: position,
+                start: CardLayout.unstretched(position, last: CGFloat(tabs.count - 1)),
                 cardIndex: layout.card(
                     at: value.startLocation, activeIndex: activeIndex, position: position, progress: driver.progress,
                     olderProgress: driver.olderProgress, in: range, slot: { slots[$0] }),

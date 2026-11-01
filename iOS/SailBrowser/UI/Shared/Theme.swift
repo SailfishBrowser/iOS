@@ -494,9 +494,9 @@ enum Theme {
         static let leftStepFraction: CGFloat = 0.039
         static let olderDepthScales: [CGFloat] = [0.98, 0.93]
         static let cardPlaceholderFavicon: CGFloat = 40
-        static let cardHeaderGap: CGFloat = 10
+        nonisolated static let cardHeaderGap: CGFloat = 10
         static let cardHeaderHeight: CGFloat = 24
-        static let cardHeaderFavicon: CGFloat = 20
+        nonisolated static let cardHeaderFavicon: CGFloat = 20
         static let cardHeaderFaviconCorner: CGFloat = 4
         static let missingFaviconCorner: CGFloat = 5
 

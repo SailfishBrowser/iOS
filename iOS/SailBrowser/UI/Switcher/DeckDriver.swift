@@ -444,14 +444,16 @@ import SwiftUI
     }
 
     func placement<Header: View>(
-        index: Int, activeIndex: Int, layout: CardLayout, header: Header, coverImage: UIImage?, coverFill: Color,
+        index: Int, activeIndex: Int, isLast: Bool, layout: CardLayout, header: Header, coverImage: UIImage?,
+        coverFill: Color,
         isUnrevealed: Bool, cover: CardCover, tabID: UUID, isPrivate: Bool = false
     ) -> CardPlacement<Header> {
         CardPlacement(
             progress: progress, olderProgress: olderProgress, pair: progress == 0 ? pair : nil,
             flick: progress == 0 ? flick : nil,
             position: position(for: tabID), lift: lifts[tabID] ?? 0,
-            slot: CGFloat(index) + shift[tabID, default: 0], index: index, activeIndex: activeIndex, layout: layout,
+            slot: CGFloat(index) + shift[tabID, default: 0], index: index, activeIndex: activeIndex, isLast: isLast,
+            layout: layout,
             header: header, coverImage: coverImage, coverFill: coverFill, isUnrevealed: isUnrevealed, cover: cover,
             tabID: tabID, isPrivate: isPrivate)
     }

@@ -54,6 +54,7 @@ struct CardPlacement<Header: View>: ViewModifier {
     let slot: CGFloat
     let index: Int
     let activeIndex: Int
+    let isLast: Bool
     let layout: CardLayout
     let header: Header
     let coverImage: UIImage?
@@ -67,7 +68,7 @@ struct CardPlacement<Header: View>: ViewModifier {
         progress: CGFloat, olderProgress: CGFloat, pair: DeckDriver.PagePair?, flick: DeckDriver.Flick?,
         position: CGFloat,
         lift: CGFloat, slot: CGFloat,
-        index: Int, activeIndex: Int,
+        index: Int, activeIndex: Int, isLast: Bool,
         layout: CardLayout, header: Header, coverImage: UIImage?, coverFill: Color, isUnrevealed: Bool,
         cover: CardCover, tabID: UUID, isPrivate: Bool = false
     ) {
@@ -80,6 +81,7 @@ struct CardPlacement<Header: View>: ViewModifier {
         self.slot = slot
         self.index = index
         self.activeIndex = activeIndex
+        self.isLast = isLast
         self.layout = layout
         self.header = header
         self.coverImage = coverImage
@@ -189,6 +191,7 @@ struct CardPlacement<Header: View>: ViewModifier {
         let outer = isActive ? unplaced : g
         let clip = g.clip
         let inverse = 1 / layout.restScale
+        let room = layout.header(slot: slot, position: position, isLast: isLast)
         #if DEBUG
         if isActive {
             DebugProfiler.markUpdate(progress: progress)
@@ -208,11 +211,10 @@ struct CardPlacement<Header: View>: ViewModifier {
                 .overlay(alignment: .topLeading) {
                     header
                         .environment(\.cardTitleOpacity, t.titleOpacity)
-                        .frame(
-                            width: layout.cardSize.width, height: Theme.Metrics.cardHeaderHeight, alignment: .leading)
+                        .frame(width: room.width, height: Theme.Metrics.cardHeaderHeight, alignment: .leading)
                         .scaleEffect(inverse, anchor: .bottomLeading)
                         .offset(y: -(Theme.Metrics.cardHeaderHeight + Theme.Metrics.cardHeaderGap * inverse))
-                        .opacity(t.headerOpacity)
+                        .opacity(t.headerOpacity * room.opacity)
                 }
                 .placed(inner)
                 .allowsHitTesting(false)

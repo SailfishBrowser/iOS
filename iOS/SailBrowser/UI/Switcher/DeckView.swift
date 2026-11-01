@@ -208,7 +208,8 @@ struct DeckView: View {
                 DeckCard(
                     driver: driver,
                     content: { TabCardView(tab: tab, isActive: index == activeIndex, layout: layout, geometry: $0) },
-                    index: index, activeIndex: activeIndex, layout: layout, header: CardHeader(tab: tab),
+                    index: index, activeIndex: activeIndex, isLast: index == tabs.count - 1, layout: layout,
+                    header: CardHeader(tab: tab),
                     coverImage: index == activeIndex ? coverImage : nil, tint: tab.tint,
                     controller: index == activeIndex ? controller : nil, covers: covers, tabID: tab.id,
                     isPrivate: tab.isPrivate)
@@ -222,7 +223,7 @@ struct DeckView: View {
                             .frame(width: layout.screen.width, height: layout.screen.height)
                             .placedAndClipped(geometry)
                     },
-                    index: ghost.slot, activeIndex: -1, layout: layout, header: CardHeader(tab: ghost.tab),
+                    index: ghost.slot, activeIndex: -1, isLast: false, layout: layout, header: CardHeader(tab: ghost.tab),
                     coverImage: nil, tint: ghost.tab.tint, controller: nil, covers: covers, tabID: ghost.id,
                     isPrivate: ghost.tab.isPrivate)
                     .transition(.identity)
@@ -562,6 +563,7 @@ private struct DeckCard<Content: View>: View {
     let content: (CardGeometry) -> Content
     let index: Int
     let activeIndex: Int
+    let isLast: Bool
     let layout: CardLayout
     let header: CardHeader
     let coverImage: UIImage?
@@ -577,7 +579,8 @@ private struct DeckCard<Content: View>: View {
         let isUnrevealed = controller.map { $0.tabID == tabID && !$0.isRevealable } ?? false
         let cover = covers.cover(for: tabID)
         let placement = driver.placement(
-            index: index, activeIndex: activeIndex, layout: layout, header: header, coverImage: coverImage,
+            index: index, activeIndex: activeIndex, isLast: isLast, layout: layout, header: header,
+            coverImage: coverImage,
             coverFill: DeckView.coverFill(tint: tint, waitsToCut: cover.waitsToCut, isPrivate: isPrivate),
             isUnrevealed: isUnrevealed,
             cover: cover, tabID: tabID, isPrivate: isPrivate)

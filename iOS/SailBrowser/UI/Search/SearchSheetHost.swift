@@ -276,6 +276,13 @@ final class SearchSheetController: UIViewController, UITextFieldDelegate, UIGest
         lowestTop.constant = window.screenInsets.top
     }
 
+    // The keyboard's rest is learnt per window size: a turn or a resize moves it, and the next open rides the keyboard
+    // again until it is known.
+    override func viewWillTransition(to size: CGSize, with coordinator: any UIViewControllerTransitionCoordinator) {
+        super.viewWillTransition(to: size, with: coordinator)
+        restTop = nil
+    }
+
     #if DEBUG
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)

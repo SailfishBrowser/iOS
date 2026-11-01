@@ -114,13 +114,12 @@ struct BarSlide: UIViewRepresentable {
         #endif
     }
 
-    // The floor is for a page scrolled under the bar's place: a scroll hide or the find bar. During a submit's bar
-    // intro the page runs to the screen bottom. A showing bar covers the floor as it rises, so the
-    // floor is only switched while the bar is out.
+    // The floor is for the find bar only. A scroll hide and a submit's bar intro run the page to the screen bottom.
+    // A showing bar covers the floor as it rises, so the floor is only switched while the bar is out.
     static func update(_ view: BarSlideView, _ controller: WebTabController, _ ui: UIState) {
         let hidden = isHidden(controller, ui)
         if hidden {
-            view.floor.view.isHidden = !(controller.isBarHidden || controller.isFindNavigatorVisible)
+            view.floor.view.isHidden = !controller.isFindNavigatorVisible
         }
         view.slide(hidden: hidden)
         view.cover(ui.isSearchCoveringBar)
@@ -142,7 +141,7 @@ struct BarContent: View {
 
 final class BarSlideView: UIView {
     let host: UIHostingController<BarContent>
-    // The bottom's safe space while the bar is out: its material over the home indicator, so no page content sits
+    // The bottom's safe space under the find bar: its material over the home indicator, so no page content sits
     // there. It sits under the bar, masked to the strip above the bar's drawn top, so the two materials never overlap
     // and no gap opens between them.
     let floor: UIHostingController<BarFloor>

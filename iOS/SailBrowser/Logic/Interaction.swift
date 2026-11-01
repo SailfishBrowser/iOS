@@ -4,7 +4,7 @@ import UIKit
 nonisolated enum Interaction: String, CaseIterable, Sendable {
     case launch, foregroundRaise
     case tabStackTap, tabStackFlick, pinchSwitcher
-    case deckCardTap, deckBackgroundTap, deckScroll, deckSettle
+    case deckCardTap, deckBackgroundTap, deckScroll
     case cardLift, cardArchiveArm, cardThrow, cardReturn, deckEmptied
     case plusTap, searchTyping, searchClear, suggestionTap, searchSubmit
     case searchDragDismiss, searchDragReturn, searchDimTap, searchGrabDuringOpen

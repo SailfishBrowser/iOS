@@ -4,15 +4,13 @@ nonisolated struct DeckGesture: Equatable, Sendable {
     enum Axis: Sendable { case horizontal, vertical }
 
     let start: CGFloat
-    let startCard: Int
     let cardIndex: Int?
     private(set) var axis: Axis?
     private var lockTranslation = CGSize.zero
     var archive: Detent
 
-    init(start: CGFloat, startCard: Int, cardIndex: Int?, cardHeight: CGFloat) {
+    init(start: CGFloat, cardIndex: Int?, cardHeight: CGFloat) {
         self.start = start
-        self.startCard = startCard
         self.cardIndex = cardIndex
         archive = Detent(line: Theme.Gesture.archiveCommitFraction * cardHeight)
     }

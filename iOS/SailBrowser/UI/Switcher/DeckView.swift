@@ -270,12 +270,11 @@ struct DeckView: View {
         driver.jump(to: target, shift: shift)
     }
 
-    private func snap(to target: CGFloat, velocity: Double, landing: (() -> Void)? = nil) {
+    private func snap(to target: CGFloat, velocity: Double) {
         driver.run(
             DeckMotion(
                 from: position, to: target, shift: driver.shift, velocity: velocity, start: .now,
-                spring: DeckSnap.release(velocity)),
-            landing: landing)
+                spring: DeckSnap.release(velocity)))
     }
 
     private func returnLift(_ id: UUID, velocity: CGFloat, layout: CardLayout) {
@@ -338,8 +337,6 @@ struct DeckView: View {
         driver.finishDeparture()
         let tabs = orderedTabs
         guard let activeIndex = tabs.firstIndex(where: { $0.id == env.browser.activeTabID }) else { return }
-        // A snap caught in flight already played for its landing card.
-        let landing = driver.motion.map { Int($0.to.rounded()) }
         if driver.motion != nil {
             jump(to: position, shift: driver.shift)
         }
@@ -348,7 +345,7 @@ struct DeckView: View {
         drag = Drag(
             startTime: value.time, activeIndex: activeIndex,
             gesture: DeckGesture(
-                start: position, startCard: landing ?? nearestCard(tabs, layout: layout),
+                start: position,
                 cardIndex: layout.card(
                     at: value.startLocation, activeIndex: activeIndex, position: position, progress: driver.progress,
                     olderProgress: driver.olderProgress, in: range, slot: { slots[$0] }),
@@ -382,7 +379,6 @@ struct DeckView: View {
         let translation = current.gesture.effective(value.translation)
         switch current.gesture.axis {
         case .horizontal:
-            env.haptics.prepare(.deckSettle)
             let position = current.gesture.start - translation.width / layout.stride
             driver.move(to: layout.stretched(position, count: tabs.count))
         case .vertical:
@@ -425,9 +421,7 @@ struct DeckView: View {
             let target = layout.snapTarget(
                 start: gesture.start, translation: gesture.effective(value.translation).width,
                 velocity: value.velocity.width, slots: slots(tabs))
-            snap(
-                to: CGFloat(target.index), velocity: target.velocity,
-                landing: target.index == gesture.startCard ? nil : { env.haptics.fire(.deckSettle) })
+            snap(to: CGFloat(target.index), velocity: target.velocity)
             trimSnapshots(tabs)
         case .vertical:
             guard let index = gesture.cardIndex else {

@@ -59,11 +59,7 @@ import SwiftUI
     private(set) var flickIDs: [UUID] = []
     private(set) var outOfStack: UUID?
     @ObservationIgnored private(set) var previous: CGFloat = 0
-    @ObservationIgnored private(set) var motion: DeckMotion? {
-        didSet { landing = nil }
-    }
-    // Plays when the motion visibly lands, within the settled distance of its target, not at the spring's rest.
-    @ObservationIgnored private var landing: (() -> Void)?
+    @ObservationIgnored private(set) var motion: DeckMotion?
     @ObservationIgnored private var baseShift: [UUID: CGFloat] = [:]
     @ObservationIgnored private var departure: (() -> Void)?
     // Thrown cards whose tab is archived while their coast is still on screen; they fly on until it ends.
@@ -343,11 +339,10 @@ import SwiftUI
     // A departing card keeps its place while the rest close the gap, until `archive` runs.
     func run(
         _ next: DeckMotion, base: [UUID: CGFloat] = [:], departing: (card: UUID, archive: () -> Void)? = nil,
-        at start: ContinuousClock.Instant = .now, landing: (() -> Void)? = nil
+        at start: ContinuousClock.Instant = .now
     ) {
         finishDeparture()
         motion = next
-        self.landing = landing
         baseShift = base
         if let departing {
             departure = departing.archive
@@ -523,10 +518,6 @@ import SwiftUI
             set(\.position, presented.position)
             set(\.shift, presented.shift.merging(baseShift, uniquingKeysWith: +))
             trackPage()
-            if let landed = landing, abs(presented.position - current.to) < Theme.Gesture.deckSettledDistance {
-                landing = nil
-                landed()
-            }
             if current.curve.isSettled(at: time) {
                 motion = nil
                 settled = true

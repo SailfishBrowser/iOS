@@ -5,7 +5,7 @@ import UIKit
 import UIKit.UIGestureRecognizerSubclass
 
 nonisolated enum HapticEvent: CaseIterable, Sendable {
-    case switcherOpened, tabSwitched, cardSettled, searchOpened, menuOpened, buttonTap,
+    case switcherOpened, tabSwitched, searchOpened, menuOpened, buttonTap,
          tabOpened, refreshArmed, pinToggled, longPress, linkCopied, zoomStepped, dataCleared, tabPaged,
          recentArmed, refreshNearing, refreshLanded
 }

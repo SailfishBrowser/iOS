@@ -126,7 +126,7 @@ enum Theme {
             case .barSwipeSettle: barSwipeSettle
             case .permissionAnswer: permissionSheet
             case .tabStackFlick: tabStackFlickSettle
-            case .deckSettle, .cardReturn: deckSnap
+            case .cardReturn: deckSnap
             // The thrown card coasts from the finger (archiveFlyOffMinimumCoast); the rest close the gap.
             case .cardThrow: archiveGapClose
             case .deckEmptied: emptyDeckAppear
@@ -169,7 +169,6 @@ enum Theme {
             // The pinch presses the tab stack button, so it plays the button's tap.
             case .tabStackTap, .pinchSwitcher: .switcherOpened
             case .tabStackFlick, .archiveRestore, .macTabsPick: .tabSwitched
-            case .deckSettle: .cardSettled
             case .plusTap: .searchOpened
             case .chevronTap: .menuOpened
             // The eyes tap as their neighbour the clear button and the menu's toggles do; the footage cannot show it.
@@ -223,7 +222,7 @@ enum Theme {
         // The step is the pull tick's step; every other event has one pattern.
         static func feedback(for event: HapticEvent, step: Int = 0) -> HapticFeedback {
             switch event {
-            case .switcherOpened, .tabSwitched, .cardSettled, .buttonTap, .searchOpened, .menuOpened, .tabOpened,
+            case .switcherOpened, .tabSwitched, .buttonTap, .searchOpened, .menuOpened, .tabOpened,
                 .recentArmed:
                 Haptic.medium
             case .longPress: Haptic.rigid
@@ -307,7 +306,7 @@ enum Theme {
             case .foregroundRaise, .chevronLongPress, .archiveOpen, .macTabsOpen, .settingsOpen, .archiveDelete,
                 .settingsChange, .sheetDone, .webEdgeSwipe:
                 .system
-            case .tabStackTap, .tabStackFlick, .pinchSwitcher, .deckCardTap, .deckBackgroundTap, .deckScroll, .deckSettle,
+            case .tabStackTap, .tabStackFlick, .pinchSwitcher, .deckCardTap, .deckBackgroundTap, .deckScroll,
                 .cardLift, .cardThrow, .cardReturn, .deckEmptied, .plusTap, .searchTyping, .searchClear, .suggestionTap,
                 .searchSubmit, .searchDragDismiss, .searchDragReturn, .searchDimTap, .searchGrabDuringOpen, .pullRelease, .barHide, .barShow,
                 .chevronTap, .menuDragDismiss, .menuDragReturn, .menuGrabDuringOpen, .menuDimTap, .menuNav,

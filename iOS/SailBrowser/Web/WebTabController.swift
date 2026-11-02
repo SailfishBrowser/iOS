@@ -138,6 +138,8 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     @ObservationIgnored private var foldPinchStart: CGFloat = 0
     @ObservationIgnored private var isFoldPinching = false
     @ObservationIgnored private var foldCrossedHalf = false
+    // Past half the paper has mostly gone and the glow shows under the status bar.
+    private(set) var isFolded = false
     @ObservationIgnored private(set) var errorView: LoadErrorView?
     @ObservationIgnored private(set) var errorClearTask: Task<Void, Error>?
     // The error page drawn when it is shown, updated or re-inset, so a capture at a gesture's start reads a picture.
@@ -333,8 +335,9 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         settled(at: 0)
     }
 
-    // The fold sits over the page and the reader, under the band. WebKit's own zoom pinch is cancelled, so the page
-    // stays at rest under the snapshots, and no switcher picture is taken.
+    // The fold sits over the page, the reader and the band, so its glow reaches the status bar once the paper has gone;
+    // the band rides on the paper. WebKit's own zoom pinch is cancelled, so the page stays at rest under the snapshots,
+    // and no switcher picture is taken.
     private func beginFold(over page: WKWebView, anchor: CGFloat) {
         page.scrollView.pinchGestureRecognizer?.isEnabled = false
         foldZoom = page.scrollView
@@ -351,7 +354,8 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
                 }))
         card.safeAreaRegions = []
         card.view.backgroundColor = .clear
-        let fold = PageFoldView(page: page, card: card.view)
+        let fold = PageFoldView(
+            page: page, band: foldBand(), card: card.view, tint: barTint.resolvedColor(with: webView.traitCollection))
         let margin = Theme.Fold.cardMargin
         fold.frame = reader.view.frame
         fold.cardInsets = UIEdgeInsets(
@@ -359,13 +363,27 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(cardPinched))
         pinch.delegate = self
         fold.addGestureRecognizer(pinch)
-        reader.view.superview!.insertSubview(fold, aboveSubview: reader.view)
+        reader.view.superview!.addSubview(fold)
         self.fold = fold
         foldCard = card
         foldCrossedHalf = false
         haptics.prepare(.pinchSwitcher)
         follow(0, anchor: anchor)
         startSummary()
+    }
+
+    // The band as browsing shows it over the safe top: the tint, and a private page's band over it.
+    private func foldBand() -> UIView {
+        let band = UIView(frame: CGRect(x: 0, y: 0, width: webView.bounds.width, height: safeTop))
+        band.backgroundColor = bandTint
+        if isPrivate {
+            let picture = UIImageView(
+                image: PrivateBandView.picture(
+                    width: webView.bounds.width, safeTop: safeTop - Theme.Metrics.privateBandExtra))
+            picture.frame = band.bounds
+            band.addSubview(picture)
+        }
+        return band
     }
 
     // The reader's article, else the text read when the page settled, else the text read now.
@@ -389,6 +407,9 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     private func follow(_ progress: CGFloat, anchor: CGFloat) {
         foldProgress = min(1, max(0, progress))
         foldAnchor = anchor
+        if (foldProgress > 0.5) != isFolded {
+            isFolded = foldProgress > 0.5
+        }
         fold!.set(progress: foldProgress, anchor: anchor)
     }
 

@@ -745,8 +745,16 @@ enum Theme {
         nonisolated static let fadeStart: CGFloat = 0.9
         // A strip's shade at its valley crease when it stands on end; its ridge edge stays clear.
         static let creaseShade: CGFloat = 0.45
-        // What shows where the strips have folded away, around the card: the app's own backdrop.
-        static let backdrop = UIColor(Palette.searchBackdrop)
+        // What shows where the strips have folded away, and behind the summary: a dark ground under two soft pools
+        // of the page's tint, the second turned along the colour wheel, as Arc Search draws its blue and pink. Each
+        // pool's centre and radii are fractions of the screen.
+        static let ground = Palette.uiHex(0x0E0E12)
+        static let glowBrightness: CGFloat = 0.85
+        static let glowOpacity: CGFloat = 0.5
+        static let glowPools: [(center: CGPoint, radii: CGSize, hueTurn: CGFloat)] = [
+            (CGPoint(x: 0.2, y: 0.3), CGSize(width: 1, height: 0.5), 0),
+            (CGPoint(x: 0.8, y: 0.72), CGSize(width: 1, height: 0.55), 0.2),
+        ]
         static let cardMargin: CGFloat = 20
         // The picture of the page's top: this share of the screen's width, cut as tall as it is wide.
         static let snapshotWidth: CGFloat = 0.6

@@ -15,7 +15,9 @@ import os
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "summary")
     private static let model = SystemLanguageModel(guardrails: .permissiveContentTransformations)
     private static let chunkTokens = 300
-    private static let summaryTokens = 600
+    // A structured answer cut at its cap fails to decode, so the cap holds fifteen sentences in a character-per-token
+    // language with room over.
+    private static let summaryTokens = 900
     // The summary's schema rides in the prompt; this is its size with its guides, estimated.
     private static let schemaTokens = 250
     private static let maximumChunks = 8

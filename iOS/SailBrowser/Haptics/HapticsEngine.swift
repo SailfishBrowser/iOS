@@ -7,7 +7,7 @@ import UIKit.UIGestureRecognizerSubclass
 nonisolated enum HapticEvent: CaseIterable, Sendable {
     case switcherOpened, tabSwitched, searchOpened, menuOpened, buttonTap,
          tabOpened, refreshArmed, pinToggled, longPress, linkCopied, zoomStepped, dataCleared, tabPaged,
-         recentArmed, refreshNearing, refreshLanded
+         recentArmed, refreshNearing, refreshLanded, foldCommitted
 }
 
 // One Core Haptics event. Intensity is strength; sharpness runs from round (0) to crisp (1). A pulse with no fade is

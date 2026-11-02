@@ -280,18 +280,15 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         }
     }
 
-    // The pinch that began the fold drives it closed under the fingers; the switcher's haptic marks the halfway point,
-    // where a release at rest completes it.
+    // The pinch that began the fold drives it closed under the fingers.
     private func foldFollowed(_ pinch: UIPinchGestureRecognizer) {
         switch pinch.state {
         case .began, .changed:
             follow(PageFold.progress(closingScale: pinch.scale), anchor: pinch.location(in: fold).y)
-            if foldProgress >= 0.5, !foldCrossedHalf {
-                foldCrossedHalf = true
-                haptics.fire(.pinchSwitcher)
-            }
+            pulse(closing: true)
         case .ended, .cancelled, .failed:
             isFoldPinching = false
+            haptics.stop(Theme.Haptic.pulse)
             release(velocity: PageFold.progressVelocity(scaleVelocity: pinch.velocity, closing: true))
         default:
             break
@@ -305,13 +302,26 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
             foldClock?.stop()
             foldClock = nil
             foldPinchStart = foldProgress
+            foldCrossedHalf = false
         case .changed:
             follow(
                 foldPinchStart - 1 + PageFold.progress(openingScale: pinch.scale), anchor: pinch.location(in: fold).y)
+            pulse(closing: false)
         case .ended, .cancelled, .failed:
+            haptics.stop(Theme.Haptic.pulse)
             release(velocity: PageFold.progressVelocity(scaleVelocity: pinch.velocity, closing: false))
         default:
             break
+        }
+    }
+
+    // The fingers feel the fold as a pulse that rises with its progress, and one tap as it crosses the point where a
+    // release at rest completes the pinch's way, once a pinch.
+    private func pulse(closing: Bool) {
+        haptics.drive(Theme.Haptic.pulse, Theme.Haptic.pulseLevel(foldProgress))
+        if !foldCrossedHalf, (foldProgress >= 0.5) == closing {
+            foldCrossedHalf = true
+            haptics.fire(.foldCommit)
         }
     }
 
@@ -379,7 +389,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         self.fold = fold
         foldCard = card
         foldCrossedHalf = false
-        haptics.prepare(.pinchSwitcher)
+        haptics.prepare(.foldCommit)
         follow(0, anchor: anchor)
         startSummary()
     }
@@ -456,6 +466,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     private func settled(at target: CGFloat) {
         follow(target, anchor: foldAnchor)
         guard target == 0 else { return }
+        haptics.stop(Theme.Haptic.pulse)
         fold?.removeFromSuperview()
         fold = nil
         foldCard = nil

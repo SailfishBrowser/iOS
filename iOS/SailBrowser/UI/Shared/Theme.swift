@@ -157,7 +157,9 @@ enum Theme {
             case .readerDragReturn: readerReturn
             case .privateToggle: privateToggle
             // Driven per frame from the finger or the scroll view.
-            case .deckScroll, .cardLift, .pullTick, .pullArm, .searchGrabDuringOpen, .menuGrabDuringOpen, .barSwipe: nil
+            case .deckScroll, .cardLift, .pullTick, .pullArm, .searchGrabDuringOpen, .menuGrabDuringOpen, .barSwipe,
+                .foldCommit:
+                nil
             // Nothing moves: the card stays opaque, the field clears and the label swaps without animation.
             case .cardArchiveArm, .recentArm, .searchTyping, .searchClear, .desktopToggle, .clearData, .barSwipeTick: nil
             // The glyph swaps to a spinner; nothing moves.
@@ -192,6 +194,7 @@ enum Theme {
             // The arm already promised the refresh; a release tap 100 to 400 ms later read as a double click.
             case .pullRelease: nil
             case .refreshLand: .refreshLanded
+            case .foldCommit: .foldCommitted
             case .pin, .unpin: .pinToggled
             case .chevronLongPress: .longPress
             case .menuCopyLink: .linkCopied
@@ -240,6 +243,7 @@ enum Theme {
             case .refreshNearing: Haptic.refreshTicks[step]
             case .refreshArmed: Haptic.refreshArm
             case .refreshLanded: Haptic.refreshLand
+            case .foldCommitted: Haptic.foldCommit
             }
         }
     }
@@ -284,10 +288,23 @@ enum Theme {
         // at 30 s, so a pull held longer than that goes quiet until the release.
         static let pullTexture = HapticTexture(intensity: 0.3, sharpness: 0.1...0.4)
         nonisolated static let pullTextureSpeed: CGFloat = 1500
-        static let textures = [pullTexture]
+        // The fold's pulse: a continuous event under the fingers from the pinch's first frame to the lift, round and
+        // low. Its intensity rises with the fold's progress from pulseFloor of its own to all of it, and its sharpness
+        // through its range, so the fingers feel the paper close without a single tick.
+        static let pulse = HapticTexture(intensity: 0.5, sharpness: 0.1...0.3)
+        static let pulseFloor: Float = 0.3
+        static let textures = [pullTexture, pulse]
+        // One soft tap as the fold crosses the point where a release at rest completes it, either way.
+        static let foldCommit = HapticFeedback.pattern(HapticPattern(.tap(0.5, 0.3)))
         // A double tap as the fresh page shows, the second a touch firmer.
         static let refreshLand = HapticFeedback.pattern(HapticPattern(.tap(0.5, 0.5), .tap(0.6, 0.5, at: 0.07)))
-        static let all = [medium, rigid, selection, success] + refreshTicks + [refreshArm, refreshLand]
+        static let all = [medium, rigid, selection, success] + refreshTicks + [refreshArm, refreshLand, foldCommit]
+
+        static func pulseLevel(_ progress: CGFloat) -> HapticTexture.Level {
+            let share = Float(progress)
+            return HapticTexture.Level(
+                intensity: share > 0 ? pulseFloor + (1 - pulseFloor) * share : 0, sharpness: share)
+        }
         // A prepared generator idles again after a short while, so one prepared longer ago is prepared again.
         static let preparedFor: Duration = .seconds(1)
         // UIKit's haptic engine cooled down 2.9 s after its last start on the phone. After any
@@ -309,7 +326,7 @@ enum Theme {
 
         static func budget(for interaction: Interaction) -> LatencyBudget {
             switch interaction {
-            case .cardArchiveArm, .pullTick, .pullArm, .barSwipeTick, .recentArm: .frames(0)
+            case .cardArchiveArm, .pullTick, .pullArm, .barSwipeTick, .recentArm, .foldCommit: .frames(0)
             case .barTranslate: .frames(2)
             case .launch, .barIntro, .clearData, .refreshLand: .timed
             case .foregroundRaise, .chevronLongPress, .archiveOpen, .macTabsOpen, .settingsOpen, .archiveDelete,

@@ -45,7 +45,7 @@ enum PolishDemo {
         .readerOpen, .readerClose, .readerDragDismiss, .readerDragReturn,
         .permissionAnswer,
         .privateToggle,
-        .pinchSwitcher,
+        .pinchSwitcher, .foldCommit,
         .macTabsOpen, .macTabsPick,
     ]
 

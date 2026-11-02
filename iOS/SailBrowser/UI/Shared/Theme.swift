@@ -719,10 +719,11 @@ enum Theme {
         static let settingsButton = Font.system(.body)
         static let settingsIconGlyph = Font.system(size: 15, weight: .semibold)
         static let permissionGlyph = Font.system(size: 34, weight: .regular)
-        static let summaryLead = Font.system(.title3)
-        static let summaryHeading = Font.system(.title3, weight: .semibold)
+        // Arc Search sets the summary's lead, headings and bodies all at body size, the headings bold.
+        static let summaryLead = Font.system(.body)
+        static let summaryHeading = Font.system(.body, weight: .bold)
         static let summaryBody = Font.system(.body)
-        static let summaryIcon = Font.system(size: 13, weight: .bold)
+        static let summaryIcon = Font.system(size: 11, weight: .bold)
         static let summaryClose = Font.system(size: 17, weight: .semibold)
         static let permissionTitle = Font.system(size: 20, weight: .semibold)
         static let permissionButton = Font.system(size: 17, weight: .semibold)
@@ -762,7 +763,7 @@ enum Theme {
         static let titleSpacing: CGFloat = 8
         static let sectionSpacing: CGFloat = 24
         static let headingSpacing: CGFloat = 6
-        static let iconSize: CGFloat = 28
+        static let iconSize: CGFloat = 24
         static let iconSpacing: CGFloat = 12
         static let icon = Color(uiColor: .systemBlue)
         static let closeSize: CGFloat = 44

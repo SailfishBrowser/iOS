@@ -429,7 +429,7 @@ nonisolated struct CardLayout: Sendable {
             }
             remaining.append(CGFloat(remaining.count) + amount)
         }
-        let target = remaining.isEmpty ? 0 : CGFloat(Self.nearest(remaining, to: position))
+        let target = CGFloat(Self.nearest(remaining, to: position))
         return DeckArchivePlan(
             shift: closing,
             motion: DeckMotion(

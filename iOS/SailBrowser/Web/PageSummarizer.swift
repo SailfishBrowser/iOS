@@ -8,7 +8,8 @@ import os
 // summarized a chunk at a time in plain text, each chunk's request carrying the previous chunk's summary, and the
 // structured summary is generated from the chunk summaries. The window is 4,096 tokens and tokenCount(for:) needs
 // iOS 26.4, so the budget is an estimate. Permissive guardrails relax only String answers, so the chunk summaries never
-// throw a guardrail violation while the structured summary can, and a page it refuses reads "No summary".
+// throw a guardrail violation while the structured summary can, and a page it refuses reads "No summary". A finished
+// summary is kept for its page's URL, so a page summarized before shows its summary at once.
 @Observable final class PageSummarizer {
     enum State: Equatable { case idle, summarizing(PageSummary), done(PageSummary), noSummary }
 
@@ -44,6 +45,7 @@ import os
 
     private(set) var state = State.idle
     @ObservationIgnored private var task: Task<Void, Never>?
+    @ObservationIgnored private var summaries: [URL: PageSummary] = [:]
 
     static var isAvailable: Bool {
         model.isAvailable
@@ -58,6 +60,15 @@ import os
         }
         state = .summarizing(PageSummary(lead: "", sections: []))
         task = Task { [weak self] in await self?.run(content, in: language) }
+    }
+
+    // True when the page at the URL has a finished summary, which then shows.
+    func shows(_ url: URL) -> Bool {
+        guard let summary = summaries[url] else { return false }
+        task?.cancel()
+        task = nil
+        state = .done(summary)
+        return true
     }
 
     func cancel() {
@@ -83,7 +94,7 @@ import os
         let chunks = SummaryChunks.split(content.text, budget: budget).prefix(Self.maximumChunks)
         do {
             if chunks.count == 1 {
-                try await stream(Self.pageInstructions, Self.prompt(title, chunks[0]))
+                try await stream(Self.pageInstructions, Self.prompt(title, chunks[0]), for: content.url)
                 return
             }
             var summaries: [String] = []
@@ -94,7 +105,8 @@ import os
                     try await session.respond(to: Self.prompt(title, body), options: Self.chunkOptions).content)
                 try Task.checkCancellation()
             }
-            try await stream(Self.combineInstructions, Self.prompt(title, summaries.joined(separator: "\n\n")))
+            try await stream(
+                Self.combineInstructions, Self.prompt(title, summaries.joined(separator: "\n\n")), for: content.url)
         } catch {
             guard !Task.isCancelled else { return }
             Self.logger.error("Summary failed: \(error, privacy: .public)")
@@ -104,7 +116,7 @@ import os
 
     // The app is in front, so the last request streams; each snapshot is the summary so far, and a section shows once
     // its kind is written, which the model writes first.
-    private func stream(_ instructions: String, _ prompt: String) async throws {
+    private func stream(_ instructions: String, _ prompt: String, for url: URL) async throws {
         let session = LanguageModelSession(model: Self.model, instructions: instructions)
         var summary = PageSummary(lead: "", sections: [])
         let responses = session.streamResponse(to: prompt, generating: PageSummary.self, options: Self.summaryOptions)
@@ -121,6 +133,7 @@ import os
             state = .summarizing(summary)
         }
         try Task.checkCancellation()
+        summaries[url] = summary
         state = .done(summary)
     }
 

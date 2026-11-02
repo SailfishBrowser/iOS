@@ -123,7 +123,6 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     @ObservationIgnored private var contentTask: Task<Void, Never>?
     // One per tab. A finished summary is kept for the URL it was made for, so a second pinch on the page shows it at once.
     let summarizer = PageSummarizer()
-    @ObservationIgnored private var summarizedURL: URL?
     // A fold that began before the page's text was read starts its summary when the text lands.
     @ObservationIgnored private var awaitsContent = false
     // The fold over the page, from the pinch's begin until it has played back open.
@@ -412,11 +411,11 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         return band
     }
 
-    // The reader's article, else the text read when the page settled, else the text read now.
+    // The page's summary from before, else one from the reader's article, else from the text read when the page
+    // settled, else from the text read now. It starts as the pinch begins, so it is under way before the release.
     private func startSummary() {
         let url = webView.url!
-        if hasSummary, summarizedURL == url { return }
-        summarizedURL = url
+        if summarizer.shows(url) { return }
         if let content = readerArticle.map({ ReaderExtractor.content(of: $0, at: url) }) ?? pageContent {
             summarizer.start(content)
         } else {
@@ -660,7 +659,6 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         pageContent = content
         guard awaitsContent else { return }
         awaitsContent = false
-        summarizedURL = content.url
         summarizer.start(content)
     }
 

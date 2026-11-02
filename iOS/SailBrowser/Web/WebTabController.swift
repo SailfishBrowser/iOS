@@ -662,10 +662,14 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         summarizer.start(content)
     }
 
-    // A navigation clears the page's text and its summary, except one on the card that is up.
+    // A navigation clears the page's text and its summary, except one on the card that is up, and drops the summary
+    // kept for the page it lands on, a reload among them, since that page is loaded afresh.
     private func clearContent() {
         contentTask?.cancel()
         pageContent = nil
+        if let url = webView.url {
+            summarizer.forget(url)
+        }
         if fold == nil {
             summarizer.cancel()
         }

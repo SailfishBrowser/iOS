@@ -77,6 +77,11 @@ import os
         state = .idle
     }
 
+    // A navigation to the URL loads its page afresh, so the summary kept for it goes.
+    func forget(_ url: URL) {
+        summaries[url] = nil
+    }
+
     // A page's lang is usually regional (en-US), and Locale.Language equality includes the region, so the match is
     // the language code and the script.
     private static func supports(_ language: Locale.Language) -> Bool {

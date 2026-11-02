@@ -343,13 +343,23 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     private func beginFold(over page: WKWebView, anchor: CGFloat) {
         page.scrollView.pinchGestureRecognizer?.isEnabled = false
         foldZoom = page.scrollView
+        // The page's top at its full width, as tall as it is wide where the page is that tall below the band.
         let width = page.bounds.width
-        let top = CGRect(x: 0, y: safeTop, width: width, height: width)
+        let top = CGRect(x: 0, y: safeTop, width: width, height: min(width, page.bounds.height - safeTop))
+        let margin = Theme.Fold.cardMargin
+        let insets = UIEdgeInsets(
+            top: safeTop + margin, left: margin, bottom: webView.window!.safeAreaInsets.bottom + margin, right: margin)
+        // The fold closes when the stage changes size, so the picture is sized once for the card's room: a share of
+        // its width, but no more than a share of its height.
+        let room = reader.view.frame.inset(by: insets).size
+        let pictureHeight = min(
+            room.width * Theme.Fold.snapshotWidth / top.width * top.height, room.height * Theme.Fold.snapshotHeight)
         let card = UIHostingController(
             rootView: SummaryCard(
                 title: readerArticle?.title ?? title,
                 favicon: webView.url!.host().flatMap { favicon?($0) },
                 snapshot: page.resizableSnapshotView(from: top, afterScreenUpdates: false, withCapInsets: .zero)!,
+                snapshotSize: CGSize(width: pictureHeight / top.height * top.width, height: pictureHeight),
                 summarizer: summarizer,
                 done: { [unowned self] in
                     haptics.fire(.sheetDone)
@@ -360,10 +370,8 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         let fold = PageFoldView(
             page: page, band: foldBand(), card: card.view, tint: barTint.resolvedColor(with: webView.traitCollection),
             resized: { [unowned self] in closeSummary() })
-        let margin = Theme.Fold.cardMargin
         fold.frame = reader.view.frame
-        fold.cardInsets = UIEdgeInsets(
-            top: safeTop + margin, left: margin, bottom: webView.window!.safeAreaInsets.bottom + margin, right: margin)
+        fold.cardInsets = insets
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(cardPinched))
         pinch.delegate = self
         fold.addGestureRecognizer(pinch)

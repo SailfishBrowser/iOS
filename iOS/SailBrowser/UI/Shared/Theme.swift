@@ -757,8 +757,10 @@ enum Theme {
             (CGPoint(x: 0.8, y: 0.72), CGSize(width: 1, height: 0.55), 0.2),
         ]
         static let cardMargin: CGFloat = 20
-        // The picture of the page's top: this share of the screen's width, cut as tall as it is wide.
+        // The picture of the page's top: this share of the card's width, but no more than this share of its height,
+        // so a wide screen still shows the summary below it.
         static let snapshotWidth: CGFloat = 0.6
+        static let snapshotHeight: CGFloat = 0.35
         static let snapshotCorner: CGFloat = 12
         static let titleSpacing: CGFloat = 8
         static let sectionSpacing: CGFloat = 24

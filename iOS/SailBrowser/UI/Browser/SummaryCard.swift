@@ -9,6 +9,7 @@ struct SummaryCard: View {
     let title: String
     let favicon: FaviconBox?
     let snapshot: UIView
+    let snapshotSize: CGSize
     let summarizer: PageSummarizer
     let done: () -> Void
 
@@ -69,8 +70,7 @@ struct SummaryCard: View {
                     .lineLimit(1)
             }
             PageSnapshot(snapshot: snapshot)
-                .aspectRatio(1, contentMode: .fit)
-                .containerRelativeFrame(.horizontal) { width, _ in width * Theme.Fold.snapshotWidth }
+                .frame(width: snapshotSize.width, height: snapshotSize.height)
                 .accessibilityHidden(true)
         }
         .frame(maxWidth: .infinity)

@@ -692,6 +692,7 @@ import WebKit
             self?.pinchedToSummary(controller) == true
         }
         controller.onSummaryClosed = { [weak self] in self?.ui.close() }
+        controller.favicon = { [weak self] host in self?.favicons.favicon(for: host) }
         controller.onOpenWindow = { [weak self] webView, url in
             guard let self else { return }
             flick?.finish()
@@ -802,6 +803,7 @@ import WebKit
                 controller.onPinchZoomEnded = nil
                 controller.onPinchToSummary = nil
                 controller.onSummaryClosed = nil
+                controller.favicon = nil
             }
             settledSnapshotTasks.removeValue(forKey: id)?.cancel()
             pool.discard(id)

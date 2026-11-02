@@ -1,12 +1,13 @@
 import SwiftUI
 
-// The page's summary in the order Arc Search lays it out: the page's title over a picture of its top, the lead
-// paragraph, then each section under its kind's symbol and its heading, as they stream in, and a round close button
-// below at the right. It sits at the top and scrolls, so nothing climbs as the words arrive.
+// The page's summary in the order Arc Search lays it out: the site's icon and the page's title over a picture of its
+// top, the lead paragraph, then each section under its kind's symbol and its heading, as they stream in, and a round
+// close button below at the right. It sits at the top and scrolls, so nothing climbs as the words arrive.
 // "Summarizing" shows until the first words, and "No summary" stands for a page with no readable text, a language the
-// model does not support, or a failed run.
+// model does not support, or a failed run. A site with no icon yet shows the switcher's grey square in its place.
 struct SummaryCard: View {
     let title: String
+    let favicon: FaviconBox?
     let snapshot: UIView
     let summarizer: PageSummarizer
     let done: () -> Void
@@ -50,10 +51,23 @@ struct SummaryCard: View {
 
     private func page(ink: Color) -> some View {
         VStack(spacing: Theme.Fold.titleSpacing) {
-            Text(title)
-                .font(Theme.Typography.cardHeaderTitle)
-                .foregroundStyle(ink.opacity(Theme.Opacity.menuPrimary))
-                .lineLimit(1)
+            HStack(spacing: Theme.Fold.titleSpacing) {
+                Group {
+                    if let image = favicon?.image {
+                        Image(uiImage: image).resizable().scaledToFit()
+                    } else {
+                        RoundedRectangle(cornerRadius: Theme.Metrics.missingFaviconCorner)
+                            .fill(Theme.Palette.missingFavicon)
+                    }
+                }
+                .frame(width: Theme.Metrics.cardHeaderFavicon, height: Theme.Metrics.cardHeaderFavicon)
+                .clipShape(RoundedRectangle(cornerRadius: Theme.Metrics.cardHeaderFaviconCorner))
+                .accessibilityHidden(true)
+                Text(title)
+                    .font(Theme.Typography.cardHeaderTitle)
+                    .foregroundStyle(ink.opacity(Theme.Opacity.menuPrimary))
+                    .lineLimit(1)
+            }
             PageSnapshot(snapshot: snapshot)
                 .aspectRatio(1, contentMode: .fit)
                 .containerRelativeFrame(.horizontal) { width, _ in width * Theme.Fold.snapshotWidth }

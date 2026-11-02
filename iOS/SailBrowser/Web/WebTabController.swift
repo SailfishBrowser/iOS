@@ -71,6 +71,8 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     @ObservationIgnored var onTitle: ((URL, String) -> Void)?
     // The page's icons, best first, ending with /favicon.ico.
     @ObservationIgnored var onFavicon: ((String, [URL]) -> Void)?
+    // The site's icon as the app holds it, for the summary's title.
+    @ObservationIgnored var favicon: ((String) -> FaviconBox?)?
     @ObservationIgnored var onFirstRevealOrFailure: (() -> Void)?
     @ObservationIgnored var onBarHiddenChanged: (() -> Void)?
     @ObservationIgnored var onDownload: ((WKDownload) -> Void)?
@@ -346,6 +348,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         let card = UIHostingController(
             rootView: SummaryCard(
                 title: readerArticle?.title ?? title,
+                favicon: webView.url!.host().flatMap { favicon?($0) },
                 snapshot: page.resizableSnapshotView(from: top, afterScreenUpdates: false, withCapInsets: .zero)!,
                 summarizer: summarizer,
                 done: { [unowned self] in

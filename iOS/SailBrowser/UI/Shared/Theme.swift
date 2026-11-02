@@ -129,6 +129,10 @@ enum Theme {
         // the page's picture and title first and the text a beat behind, in the reverse order as it goes.
         nonisolated static let summaryReveal = MotionToken.spring(duration: 0.35, bounce: 0)
         static let summaryRevealBeat: TimeInterval = 0.08
+        // Words the model has just written fade in where they land over this long, easing out, and a new section fades
+        // and rises in.
+        static let summaryTextFade: TimeInterval = 0.3
+        nonisolated static let summarySection = MotionToken.spring(duration: 0.35, bounce: 0)
 
         static func token(for interaction: Interaction) -> MotionToken? {
             switch interaction {
@@ -779,6 +783,8 @@ enum Theme {
         static let bodyOpacity: CGFloat = 0.75
         // How far below its place the summary starts as it comes in.
         static let revealRise: CGFloat = 16
+        // How far below its place a new section starts as it comes in.
+        static let sectionRise: CGFloat = 8
     }
 
     enum Gesture {

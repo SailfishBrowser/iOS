@@ -26,19 +26,23 @@ struct SummaryCard: View {
                         .revealed(shown, second: false)
                     VStack(alignment: .leading, spacing: Theme.Fold.sectionSpacing) {
                         if let summary {
-                            Text(summary.lead)
+                            StreamedText(text: summary.lead, color: ink.opacity(Theme.Opacity.menuPrimary))
                                 .font(Theme.Typography.summaryLead)
-                                .foregroundStyle(ink.opacity(Theme.Opacity.menuPrimary))
+                                .transition(Self.arrival)
                             ForEach(summary.sections.indices, id: \.self) { index in
                                 section(summary.sections[index], ink: ink)
+                                    .transition(Self.arrival)
                             }
                         } else {
                             Text(label)
                                 .font(Theme.Typography.summaryLead)
                                 .foregroundStyle(ink.opacity(Theme.Opacity.menuSecondary))
                                 .frame(maxWidth: .infinity)
+                                .transition(.opacity)
                         }
                     }
+                    .animation(Theme.Motion.summarySection.animation, value: summary == nil)
+                    .animation(Theme.Motion.summarySection.animation, value: summary?.sections.count)
                     .revealed(shown, second: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -96,16 +100,16 @@ struct SummaryCard: View {
                     .frame(width: Theme.Fold.iconSize, height: Theme.Fold.iconSize)
                     .background(Circle().fill(Theme.Fold.icon))
                     .accessibilityHidden(true)
-                Text(section.heading)
+                StreamedText(text: section.heading, color: ink.opacity(Theme.Opacity.menuPrimary))
                     .font(Theme.Typography.summaryHeading)
-                    .foregroundStyle(ink.opacity(Theme.Opacity.menuPrimary))
             }
-            Text(section.body)
+            StreamedText(text: section.body, color: ink.opacity(Theme.Fold.bodyOpacity))
                 .font(Theme.Typography.summaryBody)
-                .foregroundStyle(ink.opacity(Theme.Fold.bodyOpacity))
                 .padding(.leading, Theme.Fold.iconSize + Theme.Fold.iconSpacing)
         }
     }
+
+    private static let arrival = AnyTransition.opacity.combined(with: .offset(y: Theme.Fold.sectionRise))
 
     private static func symbol(_ kind: PageSummary.Kind) -> String {
         switch kind {
@@ -148,6 +152,67 @@ private extension View {
             .animation(
                 Theme.Motion.summaryReveal.animation.delay(shown == second ? Theme.Motion.summaryRevealBeat : 0),
                 value: shown)
+    }
+}
+
+// Text that arrives as the model writes it: each change that extends it adds a part, and a new part fades in where it
+// lands while the text before it holds, so the words never pop and no space is held for them. The text a view starts
+// with shows whole, as does a change that does not extend it. Parts are counted in characters. Until a change is seen,
+// the text past the known parts is not shown, so no frame shows it at full strength. The view redraws on the display's
+// clock only while a part is fading.
+private struct StreamedText: View {
+    private struct Part: Equatable {
+        let start: Int
+        let at: Date
+    }
+
+    let text: String
+    let color: Color
+    @State private var parts: [Part] = []
+    @State private var known: Int
+    @State private var settled = Date.distantPast
+
+    init(text: String, color: Color) {
+        self.text = text
+        self.color = color
+        _known = State(initialValue: text.count)
+    }
+
+    var body: some View {
+        let fade = Theme.Motion.summaryTextFade
+        let fading = parts.last.map { $0.at.addingTimeInterval(fade) > settled } ?? false
+        TimelineView(.animation(paused: !fading)) { context in
+            Text(attributed(at: context.date))
+        }
+        .onChange(of: text) { old, new in
+            let now = Date.now
+            parts = new.count > known && new.hasPrefix(old)
+                ? parts.filter { now.timeIntervalSince($0.at) < fade } + [Part(start: known, at: now)] : []
+            known = new.count
+        }
+        .task(id: parts.last?.at) {
+            guard (try? await Task.sleep(for: .seconds(fade))) != nil else { return }
+            settled = .now
+        }
+    }
+
+    private func attributed(at now: Date) -> AttributedString {
+        var string = AttributedString(text)
+        string.foregroundColor = color
+        let count = string.characters.count
+        let bounds = parts.map(\.start) + [known]
+        for (index, part) in parts.enumerated() {
+            let share = min(1, max(0, now.timeIntervalSince(part.at) / Theme.Motion.summaryTextFade))
+            set(&string, from: part.start, to: bounds[index + 1], count: count, opacity: UnitCurve.easeOut.value(at: share))
+        }
+        set(&string, from: known, to: count, count: count, opacity: 0)
+        return string
+    }
+
+    private func set(_ string: inout AttributedString, from start: Int, to end: Int, count: Int, opacity: Double) {
+        let lower = string.index(string.startIndex, offsetByCharacters: min(start, count))
+        let upper = string.index(string.startIndex, offsetByCharacters: min(max(start, end), count))
+        string[lower..<upper].foregroundColor = color.opacity(opacity)
     }
 }
 

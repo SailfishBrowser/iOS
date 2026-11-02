@@ -4,34 +4,42 @@ import SwiftUI
 // top, the lead paragraph, then each section under its kind's symbol and its heading, as they stream in, and a round
 // close button below at the right. It sits at the top and scrolls, so nothing climbs as the words arrive.
 // "Summarizing" shows until the first words, and "No summary" stands for a page with no readable text, a language the
-// model does not support, or a failed run. A site with no icon yet shows the switcher's grey square in its place.
+// model does not support, or a failed run. A site with no icon yet shows the switcher's grey square in its place. The
+// card shows only while the fold is closed and at rest: it rises in once the fold settles, and goes as a pinch out
+// begins.
 struct SummaryCard: View {
     let title: String
     let favicon: FaviconBox?
     let snapshot: UIView
     let snapshotSize: CGSize
     let summarizer: PageSummarizer
+    let reveal: SummaryReveal
     let done: () -> Void
 
     var body: some View {
         let ink = Theme.Palette.menuInk(light: false)
+        let shown = reveal.isShown
         VStack(spacing: Theme.Fold.closeSpacing) {
             ScrollView {
                 VStack(alignment: .leading, spacing: Theme.Fold.sectionSpacing) {
                     page(ink: ink)
-                    if let summary {
-                        Text(summary.lead)
-                            .font(Theme.Typography.summaryLead)
-                            .foregroundStyle(ink.opacity(Theme.Opacity.menuPrimary))
-                        ForEach(summary.sections.indices, id: \.self) { index in
-                            section(summary.sections[index], ink: ink)
+                        .revealed(shown, second: false)
+                    VStack(alignment: .leading, spacing: Theme.Fold.sectionSpacing) {
+                        if let summary {
+                            Text(summary.lead)
+                                .font(Theme.Typography.summaryLead)
+                                .foregroundStyle(ink.opacity(Theme.Opacity.menuPrimary))
+                            ForEach(summary.sections.indices, id: \.self) { index in
+                                section(summary.sections[index], ink: ink)
+                            }
+                        } else {
+                            Text(label)
+                                .font(Theme.Typography.summaryLead)
+                                .foregroundStyle(ink.opacity(Theme.Opacity.menuSecondary))
+                                .frame(maxWidth: .infinity)
                         }
-                    } else {
-                        Text(label)
-                            .font(Theme.Typography.summaryLead)
-                            .foregroundStyle(ink.opacity(Theme.Opacity.menuSecondary))
-                            .frame(maxWidth: .infinity)
                     }
+                    .revealed(shown, second: true)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
@@ -46,7 +54,10 @@ struct SummaryCard: View {
             .buttonStyle(.plain)
             .accessibilityLabel("Close")
             .frame(maxWidth: .infinity, alignment: .trailing)
+            .revealed(shown, second: true)
         }
+        .allowsHitTesting(shown)
+        .accessibilityHidden(!shown)
         .environment(\.colorScheme, .dark)
     }
 
@@ -121,6 +132,22 @@ struct SummaryCard: View {
         case .idle, .summarizing: "Summarizing"
         case .done, .noSummary: "No summary"
         }
+    }
+}
+
+// Whether the summary shows: set as the fold settles closed and cleared as it starts to open.
+@Observable final class SummaryReveal {
+    var isShown = false
+}
+
+private extension View {
+    // The second part comes in a beat after the first and goes a beat before it.
+    func revealed(_ shown: Bool, second: Bool) -> some View {
+        opacity(shown ? 1 : 0)
+            .offset(y: shown ? 0 : Theme.Fold.revealRise)
+            .animation(
+                Theme.Motion.summaryReveal.animation.delay(shown == second ? Theme.Motion.summaryRevealBeat : 0),
+                value: shown)
     }
 }
 

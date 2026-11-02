@@ -129,6 +129,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     // The fold over the page, from the pinch's begin until it has played back open.
     @ObservationIgnored private var fold: PageFoldView?
     @ObservationIgnored private var foldCard: UIHostingController<SummaryCard>?
+    @ObservationIgnored private var foldReveal: SummaryReveal?
     // The scroll view whose zoom pinch is off for the fold's life.
     @ObservationIgnored private var foldZoom: UIScrollView?
     @ObservationIgnored private var foldClock: FrameClock?
@@ -299,6 +300,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         case .began:
             foldClock?.stop()
             foldClock = nil
+            foldReveal!.isShown = false
             foldPinchStart = foldProgress
             foldCrossedHalf = false
         case .changed:
@@ -331,8 +333,9 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         settle(to: 1, velocity: 0)
     }
 
-    // Done and a pinch out released past the halfway point: the one way back.
+    // Done: the summary goes and the fold plays back open.
     func unfold() {
+        foldReveal!.isShown = false
         settle(to: 0, velocity: 0)
     }
 
@@ -362,6 +365,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         let room = reader.view.frame.inset(by: insets).size
         let pictureHeight = min(
             room.width * Theme.Fold.snapshotWidth / top.width * top.height, room.height * Theme.Fold.snapshotHeight)
+        let reveal = SummaryReveal()
         let card = UIHostingController(
             rootView: SummaryCard(
                 title: readerArticle?.title ?? title,
@@ -369,6 +373,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
                 snapshot: page.resizableSnapshotView(from: top, afterScreenUpdates: false, withCapInsets: .zero)!,
                 snapshotSize: CGSize(width: pictureHeight / top.height * top.width, height: pictureHeight),
                 summarizer: summarizer,
+                reveal: reveal,
                 done: { [unowned self] in
                     haptics.fire(.sheetDone)
                     unfold()
@@ -386,6 +391,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         reader.view.superview!.addSubview(fold)
         self.fold = fold
         foldCard = card
+        foldReveal = reveal
         foldCrossedHalf = false
         haptics.prepare(.foldCommit)
         follow(0, anchor: anchor)
@@ -460,14 +466,18 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         }
     }
 
-    // Closed, the fold stays at 1 while the card is up; open, it is removed and the summary closes.
+    // Closed, the fold stays at 1 and the summary comes in; open, it is removed and the summary closes.
     private func settled(at target: CGFloat) {
         follow(target, anchor: foldAnchor)
-        guard target == 0 else { return }
+        guard target == 0 else {
+            foldReveal!.isShown = true
+            return
+        }
         haptics.stop(Theme.Haptic.pulse)
         fold?.removeFromSuperview()
         fold = nil
         foldCard = nil
+        foldReveal = nil
         isFoldPinching = false
         awaitsContent = false
         foldZoom?.pinchGestureRecognizer?.isEnabled = true

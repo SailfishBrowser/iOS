@@ -2,33 +2,39 @@ import Foundation
 import FoundationModels
 import os
 
-// A page's summary from the on-device model behind Apple Intelligence. Where the model is unavailable the feature does
+// A page's summary from the on-device model behind Apple Intelligence: a lead paragraph and two to four sections, each
+// with a kind, a heading and a body, streamed as the model writes them. Where the model is unavailable the feature does
 // not exist, so availability is read at the moment of use and never cached. A page longer than one request is
-// summarized a chunk at a time, each chunk's request carrying the previous chunk's summary, and the chunk summaries
-// are then combined. The window is 4,096 tokens and tokenCount(for:) needs iOS 26.4, so the budget is an estimate.
-// With permissive guardrails a String answer never throws a guardrail violation, but it can be a refusal sentence;
-// a String gives no reliable way to tell one from a summary, so none is looked for.
+// summarized a chunk at a time in plain text, each chunk's request carrying the previous chunk's summary, and the
+// structured summary is generated from the chunk summaries. The window is 4,096 tokens and tokenCount(for:) needs
+// iOS 26.4, so the budget is an estimate. Permissive guardrails relax only String answers, so the chunk summaries never
+// throw a guardrail violation while the structured summary can, and a page it refuses reads "No summary".
 @Observable final class PageSummarizer {
-    enum State: Equatable { case idle, summarizing(String), done(String), noSummary }
+    enum State: Equatable { case idle, summarizing(PageSummary), done(PageSummary), noSummary }
 
     private static let logger = Logger(subsystem: Bundle.main.bundleIdentifier!, category: "summary")
     private static let model = SystemLanguageModel(guardrails: .permissiveContentTransformations)
-    private static let outputTokens = 300
+    private static let chunkTokens = 300
+    private static let summaryTokens = 600
+    // The summary's schema rides in the prompt; this is its size with its guides, estimated.
+    private static let schemaTokens = 250
     private static let maximumChunks = 8
     // Past this a title is no help to the summary, and it keeps a pathological one inside the window.
     private static let titleLength = 200
-    private static let options = GenerationOptions(sampling: .greedy, maximumResponseTokens: outputTokens)
+    private static let chunkOptions = GenerationOptions(sampling: .greedy, maximumResponseTokens: chunkTokens)
+    private static let summaryOptions = GenerationOptions(sampling: .greedy, maximumResponseTokens: summaryTokens)
     private static let pageInstructions = """
-        Summarize the page in three to five short sentences of plain prose, in the page's own language. \
-        Do not open with a line about the page.
+        Summarize the page in its own language: a lead paragraph on what the page is, then two to four sections on \
+        its main parts. Do not open with a line about the page.
         """
     private static let chunkInstructions = """
         Summarize this part of a page in three to five short sentences of plain prose, in its own language. \
         Text after "Earlier:" summarizes the part before it and is there only for context.
         """
     private static let combineInstructions = """
-        These are summaries of consecutive parts of one page. Combine them into one summary of the page in three to \
-        five short sentences of plain prose, in the page's own language. Do not open with a line about the page.
+        These are summaries of consecutive parts of one page. Summarize the whole page from them in its own \
+        language: a lead paragraph on what the page is, then two to four sections on its main parts. Do not open \
+        with a line about the page.
         """
     // Scripts written without spaces, and Vietnamese, count about a token per character ("Managing the context
     // window"); other languages about three characters a token.
@@ -48,7 +54,7 @@ import os
             state = .noSummary
             return
         }
-        state = .summarizing("")
+        state = .summarizing(PageSummary(lead: "", sections: []))
         task = Task { [weak self] in await self?.run(content, in: language) }
     }
 
@@ -64,12 +70,14 @@ import os
         model.supportedLanguages.contains { PageTranslator.isSame($0, language) }
     }
 
-    // The thrown error is the model's boundary: whatever it is, the page has no summary.
+    // The thrown error is the model's boundary: whatever it is, the page has no summary. A chunk's request holds the
+    // chunk, the previous chunk's summary and its own; the page's holds the chunk, the schema and the summary.
     private func run(_ content: PageContent, in language: Locale.Language) async {
         let title = String(content.title.prefix(Self.titleLength))
         let perToken = Self.characterTokenLanguages.contains(language.languageCode?.identifier ?? "") ? 1 : 3
-        let overhead = (Self.chunkInstructions.count + title.count) / perToken + 1
-        let budget = (Self.model.contextSize - overhead - 2 * Self.outputTokens) * perToken
+        let instructions = max(Self.pageInstructions.count, Self.chunkInstructions.count)
+        let overhead = (instructions + title.count) / perToken + 1
+        let budget = (Self.model.contextSize - overhead - Self.schemaTokens - Self.summaryTokens) * perToken
         let chunks = SummaryChunks.split(content.text, budget: budget).prefix(Self.maximumChunks)
         do {
             if chunks.count == 1 {
@@ -80,7 +88,8 @@ import os
             for chunk in chunks {
                 let session = LanguageModelSession(model: Self.model, instructions: Self.chunkInstructions)
                 let body = summaries.last.map { "Earlier: \($0)\n\n\(chunk)" } ?? chunk
-                summaries.append(try await session.respond(to: Self.prompt(title, body), options: Self.options).content)
+                summaries.append(
+                    try await session.respond(to: Self.prompt(title, body), options: Self.chunkOptions).content)
                 try Task.checkCancellation()
             }
             try await stream(Self.combineInstructions, Self.prompt(title, summaries.joined(separator: "\n\n")))
@@ -91,21 +100,50 @@ import os
         }
     }
 
-    // The app is in front, so the last request streams; each snapshot is the text so far.
+    // The app is in front, so the last request streams; each snapshot is the summary so far, and a section shows once
+    // its kind is written, which the model writes first.
     private func stream(_ instructions: String, _ prompt: String) async throws {
         let session = LanguageModelSession(model: Self.model, instructions: instructions)
-        var text = ""
-        for try await snapshot in session.streamResponse(to: prompt, options: Self.options) {
+        var summary = PageSummary(lead: "", sections: [])
+        let responses = session.streamResponse(to: prompt, generating: PageSummary.self, options: Self.summaryOptions)
+        for try await snapshot in responses {
             try Task.checkCancellation()
-            text = snapshot.content
-            state = .summarizing(text)
+            let partial = snapshot.content
+            summary = PageSummary(
+                lead: partial.lead ?? "",
+                sections: (partial.sections ?? []).compactMap { section in
+                    section.kind.map {
+                        PageSummary.Section(kind: $0, heading: section.heading ?? "", body: section.body ?? "")
+                    }
+                })
+            state = .summarizing(summary)
         }
         try Task.checkCancellation()
-        state = .done(text)
+        state = .done(summary)
     }
 
     private static func prompt(_ title: String, _ body: String) -> String {
         title.isEmpty ? body : "\(title)\n\n\(body)"
+    }
+}
+
+@Generable struct PageSummary: Equatable {
+    @Guide(description: "Two or three sentences on what the page is and its main point, in the page's own language")
+    var lead: String
+    @Guide(description: "The page's main parts", .minimumCount(2), .maximumCount(4))
+    var sections: [Section]
+
+    @Generable struct Section: Equatable {
+        @Guide(description: "What this part is about")
+        var kind: Kind
+        @Guide(description: "A noun phrase of two or three words naming this part, in the page's own language")
+        var heading: String
+        @Guide(description: "One to three sentences on this part, in the page's own language")
+        var body: String
+    }
+
+    @Generable enum Kind {
+        case topics, people, dates, how, `where`, money, other
     }
 }
 

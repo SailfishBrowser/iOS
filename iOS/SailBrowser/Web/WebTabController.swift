@@ -338,10 +338,13 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     private func beginFold(over page: WKWebView, anchor: CGFloat) {
         page.scrollView.pinchGestureRecognizer?.isEnabled = false
         foldZoom = page.scrollView
-        let look = MenuLook(isLight: Theme.Palette.isLight(barTint, in: webView.traitCollection), tint: nil)
+        let width = page.bounds.width
+        let top = CGRect(x: 0, y: safeTop, width: width, height: width)
         let card = UIHostingController(
             rootView: SummaryCard(
-                title: readerArticle?.title ?? title, summarizer: summarizer, look: look,
+                title: readerArticle?.title ?? title,
+                snapshot: page.resizableSnapshotView(from: top, afterScreenUpdates: false, withCapInsets: .zero)!,
+                summarizer: summarizer,
                 done: { [unowned self] in
                     haptics.fire(.sheetDone)
                     unfold()

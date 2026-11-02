@@ -719,6 +719,11 @@ enum Theme {
         static let settingsButton = Font.system(.body)
         static let settingsIconGlyph = Font.system(size: 15, weight: .semibold)
         static let permissionGlyph = Font.system(size: 34, weight: .regular)
+        static let summaryLead = Font.system(.title3)
+        static let summaryHeading = Font.system(.title3, weight: .semibold)
+        static let summaryBody = Font.system(.body)
+        static let summaryIcon = Font.system(size: 13, weight: .bold)
+        static let summaryClose = Font.system(size: 17, weight: .semibold)
         static let permissionTitle = Font.system(size: 20, weight: .semibold)
         static let permissionButton = Font.system(size: 17, weight: .semibold)
         // The reader's type in the system serif, substituted into reader.css; the title at the platform's Title 1 size.
@@ -742,9 +747,20 @@ enum Theme {
         static let creaseShade: CGFloat = 0.45
         // What shows where the strips have folded away, around the card: the app's own backdrop.
         static let backdrop = UIColor(Palette.searchBackdrop)
-        static let cardMargin: CGFloat = 16
-        static let cardPadding: CGFloat = 20
-        static let cardSpacing: CGFloat = 12
+        static let cardMargin: CGFloat = 20
+        // The picture of the page's top: this share of the screen's width, cut as tall as it is wide.
+        static let snapshotWidth: CGFloat = 0.6
+        static let snapshotCorner: CGFloat = 12
+        static let titleSpacing: CGFloat = 8
+        static let sectionSpacing: CGFloat = 24
+        static let headingSpacing: CGFloat = 6
+        static let iconSize: CGFloat = 28
+        static let iconSpacing: CGFloat = 12
+        static let icon = Color(uiColor: .systemBlue)
+        static let closeSize: CGFloat = 44
+        static let closeSpacing: CGFloat = 12
+        static let closeFill: CGFloat = 0.16
+        static let bodyOpacity: CGFloat = 0.75
     }
 
     enum Gesture {

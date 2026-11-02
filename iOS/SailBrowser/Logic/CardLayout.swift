@@ -359,12 +359,16 @@ nonisolated struct CardLayout: Sendable {
         return hits.max { $0.zIndex < $1.zIndex }?.index
     }
 
-    // A horizontal release at this finger velocity (pt/s), as Arc Search's switcher pages: the card nearest where it
-    // was let go, or past the flick velocity the next card beyond it in the direction of travel, within the deck's ends.
+    // A horizontal release at this finger velocity (pt/s): the card nearest where it would coast at UIKit's fast
+    // deceleration, so a faster flick carries more cards, and past the flick velocity at least the next card beyond the
+    // release in its direction of travel, within the deck's ends.
     func releaseTarget(from position: CGFloat, velocity: CGFloat, count: Int) -> CGFloat {
+        let projected =
+            (position - Magnet.project(velocity: velocity, rate: Theme.Gesture.decelerationFast) / stride).rounded()
         let card =
             abs(velocity) < Theme.Gesture.deckFlickVelocity
-            ? position.rounded() : velocity < 0 ? position.rounded(.down) + 1 : position.rounded(.up) - 1
+            ? projected
+            : velocity < 0 ? max(projected, position.rounded(.down) + 1) : min(projected, position.rounded(.up) - 1)
         return min(max(card, 0), CGFloat(count - 1))
     }
 

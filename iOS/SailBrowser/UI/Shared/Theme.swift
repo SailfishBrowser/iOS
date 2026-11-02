@@ -837,8 +837,8 @@ enum Theme {
         // flick across two tabs played two ticks). Past either end it stretches this fraction of a page.
         nonisolated static let barSwipeCommitFraction: CGFloat = 0.5
         nonisolated static let barSwipeFlickVelocity: CGFloat = 400
-        // A deck release this fast settles on the next card in its direction, as the bar swipe commits; every release in
-        // the Arc Search recording, all faster than 1200 pt/s, went to the next card, never two.
+        // A deck release this fast settles at least on the next card in its direction, as the bar swipe commits; a faster
+        // one carries as many cards as its coast at the fast deceleration would.
         nonisolated static let deckFlickVelocity = barSwipeFlickVelocity
         nonisolated static let barSwipeMaxTabs = 1
         // A drag goes 250 pt past the newest tab at full size with no visible stiffness.

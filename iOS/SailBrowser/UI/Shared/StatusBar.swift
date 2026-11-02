@@ -2,7 +2,7 @@ import SwiftUI
 import UIKit
 
 // The status bar reads on what is behind it: the band (the page's or the reader's) while browsing, dark backdrops
-// everywhere else.
+// everywhere else, the summary's glow among them once the page is folded past half.
 enum StatusBarStyle {
     static func style(
         tint: UIColor?, deckProgress: CGFloat, overlay: UIState.Overlay, traits: UITraitCollection
@@ -76,7 +76,9 @@ struct StatusBarStyler: View {
         let ui = env.ui
         StatusBarInstaller(
             style: StatusBarStyle.style(
-                tint: env.activeIsPrivate ? Theme.Palette.privateBand : env.activeController?.bandTint, deckProgress: ui.deckProgress, overlay: ui.overlay,
+                tint: env.activeController?.isFolded == true
+                    ? nil : env.activeIsPrivate ? Theme.Palette.privateBand : env.activeController?.bandTint,
+                deckProgress: ui.deckProgress, overlay: ui.overlay,
                 traits: UITraitCollection(userInterfaceStyle: colorScheme == .dark ? .dark : .light)),
             isFullscreen: OrientationPolicy.shared.isElementFullscreen)
     }

@@ -726,6 +726,12 @@ enum Theme {
         static let settingsButton = Font.system(.body)
         static let settingsIconGlyph = Font.system(size: 15, weight: .semibold)
         static let permissionGlyph = Font.system(size: 34, weight: .regular)
+        // Arc Search sets the summary's lead, headings and bodies all at body size, the headings bold.
+        static let summaryLead = Font.system(.body)
+        static let summaryHeading = Font.system(.body, weight: .bold)
+        static let summaryBody = Font.system(.body)
+        static let summaryIcon = Font.system(size: 11, weight: .bold)
+        static let summaryClose = Font.system(size: 17, weight: .semibold)
         static let permissionTitle = Font.system(size: 20, weight: .semibold)
         static let permissionButton = Font.system(size: 17, weight: .semibold)
         // The reader's type in the system serif, substituted into reader.css; the title at the platform's Title 1 size.
@@ -747,11 +753,32 @@ enum Theme {
         nonisolated static let fadeStart: CGFloat = 0.9
         // A strip's shade at its valley crease when it stands on end; its ridge edge stays clear.
         static let creaseShade: CGFloat = 0.45
-        // What shows where the strips have folded away, around the card: the app's own backdrop.
-        static let backdrop = UIColor(Palette.searchBackdrop)
-        static let cardMargin: CGFloat = 16
-        static let cardPadding: CGFloat = 20
-        static let cardSpacing: CGFloat = 12
+        // What shows where the strips have folded away, and behind the summary: a dark ground under two soft pools
+        // of the page's tint, the second turned along the colour wheel, as Arc Search draws its blue and pink. Each
+        // pool's centre and radii are fractions of the screen.
+        static let ground = Palette.uiHex(0x0E0E12)
+        static let glowBrightness: CGFloat = 0.85
+        static let glowOpacity: CGFloat = 0.5
+        static let glowPools: [(center: CGPoint, radii: CGSize, hueTurn: CGFloat)] = [
+            (CGPoint(x: 0.2, y: 0.3), CGSize(width: 1, height: 0.5), 0),
+            (CGPoint(x: 0.8, y: 0.72), CGSize(width: 1, height: 0.55), 0.2),
+        ]
+        static let cardMargin: CGFloat = 20
+        // The picture of the page's top: this share of the card's width, but no more than this share of its height,
+        // so a wide screen still shows the summary below it.
+        static let snapshotWidth: CGFloat = 0.6
+        static let snapshotHeight: CGFloat = 0.35
+        static let snapshotCorner: CGFloat = 12
+        static let titleSpacing: CGFloat = 8
+        static let sectionSpacing: CGFloat = 24
+        static let headingSpacing: CGFloat = 6
+        static let iconSize: CGFloat = 24
+        static let iconSpacing: CGFloat = 12
+        static let icon = Color(uiColor: .systemBlue)
+        static let closeSize: CGFloat = 44
+        static let closeSpacing: CGFloat = 12
+        static let closeFill: CGFloat = 0.16
+        static let bodyOpacity: CGFloat = 0.75
     }
 
     enum Gesture {

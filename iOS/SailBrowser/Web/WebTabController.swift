@@ -71,6 +71,8 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     @ObservationIgnored var onTitle: ((URL, String) -> Void)?
     // The page's icons, best first, ending with /favicon.ico.
     @ObservationIgnored var onFavicon: ((String, [URL]) -> Void)?
+    // The site's icon as the app holds it, for the summary's title.
+    @ObservationIgnored var favicon: ((String) -> FaviconBox?)?
     @ObservationIgnored var onFirstRevealOrFailure: (() -> Void)?
     @ObservationIgnored var onBarHiddenChanged: (() -> Void)?
     @ObservationIgnored var onDownload: ((WKDownload) -> Void)?
@@ -138,6 +140,8 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     @ObservationIgnored private var foldPinchStart: CGFloat = 0
     @ObservationIgnored private var isFoldPinching = false
     @ObservationIgnored private var foldCrossedHalf = false
+    // Past half the paper has mostly gone and the glow shows under the status bar.
+    private(set) var isFolded = false
     @ObservationIgnored private(set) var errorView: LoadErrorView?
     @ObservationIgnored private(set) var errorClearTask: Task<Void, Error>?
     // The error page drawn when it is shown, updated or re-inset, so a capture at a gesture's start reads a picture.
@@ -324,8 +328,8 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         settle(to: 0, velocity: 0)
     }
 
-    // The summary is closed from outside, as a link from another app lands in a new tab in front: the fold goes at
-    // once, so the page is not left folded under its card with its zoom pinch off.
+    // The summary is closed from outside, as a link from another app lands in a new tab in front, or by a rotation or
+    // a window resize: the fold goes at once, so the page is not left folded under its card with its zoom pinch off.
     func closeSummary() {
         guard fold != nil else { return }
         foldClock?.stop()
@@ -333,36 +337,65 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         settled(at: 0)
     }
 
-    // The fold sits over the page and the reader, under the band. WebKit's own zoom pinch is cancelled, so the page
-    // stays at rest under the snapshots, and no switcher picture is taken.
+    // The fold sits over the page, the reader and the band, so its glow reaches the status bar once the paper has gone;
+    // the band rides on the paper. WebKit's own zoom pinch is cancelled, so the page stays at rest under the snapshots,
+    // and no switcher picture is taken.
     private func beginFold(over page: WKWebView, anchor: CGFloat) {
         page.scrollView.pinchGestureRecognizer?.isEnabled = false
         foldZoom = page.scrollView
-        let look = MenuLook(isLight: Theme.Palette.isLight(barTint, in: webView.traitCollection), tint: nil)
+        // The page's top at its full width, as tall as it is wide where the page is that tall below the band.
+        let width = page.bounds.width
+        let top = CGRect(x: 0, y: safeTop, width: width, height: min(width, page.bounds.height - safeTop))
+        let margin = Theme.Fold.cardMargin
+        let insets = UIEdgeInsets(
+            top: safeTop + margin, left: margin, bottom: webView.window!.safeAreaInsets.bottom + margin, right: margin)
+        // The fold closes when the stage changes size, so the picture is sized once for the card's room: a share of
+        // its width, but no more than a share of its height.
+        let room = reader.view.frame.inset(by: insets).size
+        let pictureHeight = min(
+            room.width * Theme.Fold.snapshotWidth / top.width * top.height, room.height * Theme.Fold.snapshotHeight)
         let card = UIHostingController(
             rootView: SummaryCard(
-                title: readerArticle?.title ?? title, summarizer: summarizer, look: look,
+                title: readerArticle?.title ?? title,
+                favicon: webView.url!.host().flatMap { favicon?($0) },
+                snapshot: page.resizableSnapshotView(from: top, afterScreenUpdates: false, withCapInsets: .zero)!,
+                snapshotSize: CGSize(width: pictureHeight / top.height * top.width, height: pictureHeight),
+                summarizer: summarizer,
                 done: { [unowned self] in
                     haptics.fire(.sheetDone)
                     unfold()
                 }))
         card.safeAreaRegions = []
         card.view.backgroundColor = .clear
-        let fold = PageFoldView(page: page, card: card.view)
-        let margin = Theme.Fold.cardMargin
+        let fold = PageFoldView(
+            page: page, band: foldBand(), card: card.view, tint: barTint.resolvedColor(with: webView.traitCollection),
+            resized: { [unowned self] in closeSummary() })
         fold.frame = reader.view.frame
-        fold.cardInsets = UIEdgeInsets(
-            top: safeTop + margin, left: margin, bottom: webView.window!.safeAreaInsets.bottom + margin, right: margin)
+        fold.cardInsets = insets
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(cardPinched))
         pinch.delegate = self
         fold.addGestureRecognizer(pinch)
-        reader.view.superview!.insertSubview(fold, aboveSubview: reader.view)
+        reader.view.superview!.addSubview(fold)
         self.fold = fold
         foldCard = card
         foldCrossedHalf = false
         haptics.prepare(.pinchSwitcher)
         follow(0, anchor: anchor)
         startSummary()
+    }
+
+    // The band as browsing shows it over the safe top: the tint, and a private page's band over it.
+    private func foldBand() -> UIView {
+        let band = UIView(frame: CGRect(x: 0, y: 0, width: webView.bounds.width, height: safeTop))
+        band.backgroundColor = bandTint
+        if isPrivate {
+            let picture = UIImageView(
+                image: PrivateBandView.picture(
+                    width: webView.bounds.width, safeTop: safeTop - Theme.Metrics.privateBandExtra))
+            picture.frame = band.bounds
+            band.addSubview(picture)
+        }
+        return band
     }
 
     // The reader's article, else the text read when the page settled, else the text read now.
@@ -386,6 +419,9 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     private func follow(_ progress: CGFloat, anchor: CGFloat) {
         foldProgress = min(1, max(0, progress))
         foldAnchor = anchor
+        if (foldProgress > 0.5) != isFolded {
+            isFolded = foldProgress > 0.5
+        }
         fold!.set(progress: foldProgress, anchor: anchor)
     }
 

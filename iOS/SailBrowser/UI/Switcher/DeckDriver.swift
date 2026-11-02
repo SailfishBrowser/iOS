@@ -349,7 +349,7 @@ import SwiftUI
             set(\.departing[departing.card], next.from)
         }
         previous = next.from
-        updateSpan(to: next.glide == nil ? next.to : next.from)
+        updateSpan(to: next.to)
         startClock(at: starting(start))
     }
 
@@ -517,11 +517,6 @@ import SwiftUI
         var settled = false
         if let current = motion {
             let presented = current.presented(at: time)
-            // A glide builds the cards around where it is drawn, as a drag does, not along its whole path.
-            if current.glide != nil {
-                previous = position
-                updateSpan(to: presented.position)
-            }
             set(\.position, presented.position)
             set(\.shift, presented.shift.merging(baseShift, uniquingKeysWith: +))
             trackPage()

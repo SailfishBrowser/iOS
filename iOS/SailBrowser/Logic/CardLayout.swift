@@ -359,21 +359,32 @@ nonisolated struct CardLayout: Sendable {
         return hits.max { $0.zIndex < $1.zIndex }?.index
     }
 
-    // A horizontal release at this finger velocity (pt/s): inside the deck it glides; from the stretch past an end
-    // it springs back to that end, at the finger's velocity relative to the distance left, or 0 when it points away.
-    func release(
-        from position: CGFloat, velocity: CGFloat, count: Int, shift: [UUID: CGFloat], start: ContinuousClock.Instant
-    ) -> DeckMotion {
-        let last = CGFloat(count - 1)
-        let speed = -velocity / stride
-        guard position < 0 || position > last else {
-            return DeckMotion(
-                glide: DeckGlide(from: position, velocity: speed, start: start, stride: stride, last: last), shift: shift)
+    // A horizontal release at this finger velocity (pt/s), as Arc Search's switcher pages: the card nearest where it
+    // was let go, or past the flick velocity the next card beyond it in the direction of travel, within the deck's ends.
+    func releaseTarget(from position: CGFloat, velocity: CGFloat, count: Int) -> CGFloat {
+        let card =
+            abs(velocity) < Theme.Gesture.deckFlickVelocity
+            ? position.rounded() : velocity < 0 ? position.rounded(.down) + 1 : position.rounded(.up) - 1
+        return min(max(card, 0), CGFloat(count - 1))
+    }
+
+    // The settle on a card: it starts at the page rate times the distance left, whatever the finger's speed, and eases
+    // out to rest on it with no overshoot.
+    func page(from position: CGFloat, to target: CGFloat, shift: [UUID: CGFloat], start: ContinuousClock.Instant)
+        -> DeckMotion
+    {
+        DeckMotion(
+            from: position, to: target, shift: shift, velocity: Theme.Motion.deckPageRate, start: start,
+            spring: DeckSnap.page, points: stride)
+    }
+
+    // The slot drawn nearest the position, the later one on a tie.
+    static func nearest(_ slots: [CGFloat], to position: CGFloat) -> Int {
+        var index = 0
+        for (candidate, slot) in slots.enumerated() where abs(slot - position) <= abs(slots[index] - position) {
+            index = candidate
         }
-        let edge = min(max(position, 0), last)
-        let relative = max(Double(SheetDrag.releaseVelocity(speed, toward: edge - position)), 0)
-        return DeckMotion(
-            from: position, to: edge, shift: shift, velocity: relative, start: start, spring: DeckSnap.release(relative))
+        return index
     }
 
     // The finger's travel added to the lift the card showed at the lock, so a re-grab of a springing card picks it
@@ -418,11 +429,7 @@ nonisolated struct CardLayout: Sendable {
             }
             remaining.append(CGFloat(remaining.count) + amount)
         }
-        // The card drawn nearest the position keeps its place, the lower one on a tie.
-        let nearest = remaining.indices.min { abs(remaining[$0] - position) < abs(remaining[$1] - position) }
-        let target = nearest.map {
-            min(max(position - remaining[$0] + CGFloat($0), 0), CGFloat(remaining.count - 1))
-        } ?? 0
+        let target = remaining.isEmpty ? 0 : CGFloat(Self.nearest(remaining, to: position))
         return DeckArchivePlan(
             shift: closing,
             motion: DeckMotion(
@@ -497,6 +504,7 @@ nonisolated struct CardLayout: Sendable {
 
 nonisolated struct DeckSnap: Equatable, Sendable {
     static let snap = Theme.Motion.deckSnap.spring
+    static let page = Theme.Motion.deckPage.spring
     static let gapClose = Theme.Motion.archiveGapClose.spring
     static let zoom = Theme.Motion.deckZoom.spring
     static let olderZoom = Theme.Motion.deckOlderZoom.spring
@@ -560,8 +568,6 @@ nonisolated struct DeckSnap: Equatable, Sendable {
 
 nonisolated struct DeckMotion: Equatable, Sendable {
     let curve: DeckSnap
-    // A release that glides draws the position; the curve then closes the shift alone, on the gap close's spring.
-    let glide: DeckGlide?
     let from: CGFloat
     let to: CGFloat
     let shift: [UUID: CGFloat]
@@ -574,32 +580,21 @@ nonisolated struct DeckMotion: Equatable, Sendable {
     ) {
         curve = DeckSnap(
             from: 0, to: 1, velocity: velocity, start: start, spring: spring, points: points.map { $0 * abs(to - from) })
-        glide = nil
         self.from = from
         self.to = to
         self.shift = shift
         self.points = points
     }
 
-    init(glide: DeckGlide, shift: [UUID: CGFloat]) {
-        curve = DeckSnap(from: 0, to: 1, velocity: 0, start: glide.start, spring: DeckSnap.gapClose)
-        self.glide = glide
-        from = glide.from
-        to = glide.end
-        self.shift = shift
-        points = nil
-    }
-
     func isSettled(at time: ContinuousClock.Instant) -> Bool {
-        guard let glide else { return curve.isSettled(at: time) }
-        return glide.isSettled(at: time) && (shift.isEmpty || curve.isSettled(at: time))
+        curve.isSettled(at: time)
     }
 
     func retargeted(to target: CGFloat, at time: ContinuousClock.Instant, spring: Spring) -> DeckMotion? {
         guard !isSettled(at: time) else { return nil }
         let presented = presented(at: time)
         let distance = target - presented.position
-        let speed = glide?.velocity(at: time) ?? (to - from) * curve.velocity(at: time)
+        let speed = (to - from) * curve.velocity(at: time)
         return DeckMotion(
             from: presented.position, to: target, shift: presented.shift,
             velocity: distance == 0 ? 0 : Double(speed / distance), start: time, spring: spring, points: points)
@@ -607,7 +602,7 @@ nonisolated struct DeckMotion: Equatable, Sendable {
 
     func presented(at time: ContinuousClock.Instant) -> (position: CGFloat, shift: [UUID: CGFloat]) {
         let progress = curve.position(at: time)
-        return (glide?.position(at: time) ?? from + (to - from) * progress, shift.mapValues { $0 * (1 - progress) }.filter { $0.value != 0 })
+        return (from + (to - from) * progress, shift.mapValues { $0 * (1 - progress) }.filter { $0.value != 0 })
     }
 }
 

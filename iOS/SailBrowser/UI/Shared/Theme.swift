@@ -7,6 +7,13 @@ enum Theme {
         nonisolated static let deckZoom = MotionToken.spring(duration: 0.22, bounce: 0.025)
         nonisolated static let deckOlderZoom = MotionToken.spring(duration: 0.34, bounce: 0.1)
         nonisolated static let deckSnap = MotionToken.physical(mass: 1, stiffness: 320, damping: 32)
+        // The deck's settle on a card, measured on Arc Search's switcher: it eases out exponentially at UIKit's fast
+        // scroll deceleration, a time constant of 0.1 s, with no overshoot, and a card lands in about half a second.
+        // A critically damped spring started at this rate times the distance left draws exactly that curve.
+        nonisolated static let deckPageRate =
+            1000 * (1 - Double(Gesture.decelerationFast)) / Double(Gesture.decelerationFast)
+        nonisolated static let deckPage = MotionToken.physical(
+            mass: 1, stiffness: deckPageRate * deckPageRate, damping: 2 * deckPageRate)
         nonisolated static let bar = MotionToken.spring(duration: 0.28, bounce: 0)
         nonisolated static let keyboardDuration: TimeInterval = 0.3833
         static let keyboardCurve = UIView.AnimationOptions(rawValue: 7 << 16)
@@ -797,6 +804,9 @@ enum Theme {
         // flick across two tabs played two ticks). Past either end it stretches this fraction of a page.
         nonisolated static let barSwipeCommitFraction: CGFloat = 0.5
         nonisolated static let barSwipeFlickVelocity: CGFloat = 400
+        // A deck release this fast settles on the next card in its direction, as the bar swipe commits; every release in
+        // the Arc Search recording, all faster than 1200 pt/s, went to the next card, never two.
+        nonisolated static let deckFlickVelocity = barSwipeFlickVelocity
         nonisolated static let barSwipeMaxTabs = 1
         // A drag goes 250 pt past the newest tab at full size with no visible stiffness.
         nonisolated static let barSwipeStretch: CGFloat = 0.7

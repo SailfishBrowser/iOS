@@ -326,8 +326,8 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         settle(to: 0, velocity: 0)
     }
 
-    // The summary is closed from outside, as a link from another app lands in a new tab in front: the fold goes at
-    // once, so the page is not left folded under its card with its zoom pinch off.
+    // The summary is closed from outside, as a link from another app lands in a new tab in front, or by a rotation or
+    // a window resize: the fold goes at once, so the page is not left folded under its card with its zoom pinch off.
     func closeSummary() {
         guard fold != nil else { return }
         foldClock?.stop()
@@ -355,7 +355,8 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         card.safeAreaRegions = []
         card.view.backgroundColor = .clear
         let fold = PageFoldView(
-            page: page, band: foldBand(), card: card.view, tint: barTint.resolvedColor(with: webView.traitCollection))
+            page: page, band: foldBand(), card: card.view, tint: barTint.resolvedColor(with: webView.traitCollection),
+            resized: { [unowned self] in closeSummary() })
         let margin = Theme.Fold.cardMargin
         fold.frame = reader.view.frame
         fold.cardInsets = UIEdgeInsets(

@@ -39,10 +39,13 @@ nonisolated struct DeckCoast: Equatable, Sendable {
     }
 }
 
-// A horizontal release in the deck, as a scroll view without paging decelerates: it coasts at the platform's normal
-// deceleration and rests where it slows under the landed speed. A coast that reaches an end of the deck carries its
-// speed there into a spring about that end, drawn through the end's stretch, and comes back to rest on it.
+// A horizontal release in the deck, as a scroll view without paging decelerates: it coasts at the platform's fast
+// deceleration, so it follows the finger and stops soon after the lift, and rests where it slows under the landed
+// speed. A coast that reaches an end of the deck carries its speed there into a spring about that end, drawn through
+// the end's stretch, and comes back to rest on it.
 nonisolated struct DeckGlide: Equatable, Sendable {
+    static let rate = 1000 * (1 - Theme.Gesture.decelerationFast) / Theme.Gesture.decelerationFast
+
     let from: CGFloat
     // Positions per second.
     let velocity: CGFloat
@@ -56,7 +59,7 @@ nonisolated struct DeckGlide: Equatable, Sendable {
     }
 
     private var rest: CGFloat {
-        abs(velocity) <= restSpeed ? from : from + (velocity - copysign(restSpeed, velocity)) / DeckCoast.rate
+        abs(velocity) <= restSpeed ? from : from + (velocity - copysign(restSpeed, velocity)) / Self.rate
     }
 
     var edge: CGFloat? {
@@ -69,12 +72,12 @@ nonisolated struct DeckGlide: Equatable, Sendable {
 
     // The coast loses speed in proportion to the distance it covers.
     private var edgeSpeed: CGFloat {
-        velocity - DeckCoast.rate * (end - from)
+        velocity - Self.rate * (end - from)
     }
 
     private var coastDuration: TimeInterval {
         guard abs(velocity) > restSpeed else { return 0 }
-        return Double(log(velocity / (edge == nil ? copysign(restSpeed, velocity) : edgeSpeed)) / DeckCoast.rate)
+        return Double(log(velocity / (edge == nil ? copysign(restSpeed, velocity) : edgeSpeed)) / Self.rate)
     }
 
     func isSettled(at time: ContinuousClock.Instant) -> Bool {
@@ -89,7 +92,7 @@ nonisolated struct DeckGlide: Equatable, Sendable {
 
     func velocity(at time: ContinuousClock.Instant) -> CGFloat {
         let elapsed = (time - start) / .seconds(1)
-        guard elapsed >= coastDuration else { return velocity * exp(-DeckCoast.rate * CGFloat(elapsed)) }
+        guard elapsed >= coastDuration else { return velocity * exp(-Self.rate * CGFloat(elapsed)) }
         guard edge != nil else { return 0 }
         return DeckSnap.snap.velocity(target: 0, initialVelocity: edgeSpeed, time: elapsed - coastDuration)
     }
@@ -100,7 +103,7 @@ nonisolated struct DeckGlide: Equatable, Sendable {
 
     private func raw(at elapsed: TimeInterval) -> CGFloat {
         guard elapsed >= coastDuration else {
-            return from + velocity / DeckCoast.rate * (1 - exp(-DeckCoast.rate * CGFloat(elapsed)))
+            return from + velocity / Self.rate * (1 - exp(-Self.rate * CGFloat(elapsed)))
         }
         guard edge != nil else { return rest }
         return end + DeckSnap.snap.value(target: 0, initialVelocity: edgeSpeed, time: elapsed - coastDuration)

@@ -1,12 +1,12 @@
 import UIKit
 
-// The page as strips of paper over its summary card and the glow of its tint. The fold sits over the band, so the
-// band rides on the top strip and the glow reaches the status bar once the paper has gone. The strips are snapshot
+// The page as two halves of paper over its summary card and the glow of its tint. The fold sits over the band, so the
+// band rides on the top half and the glow reaches the status bar once the paper has gone. The halves are snapshot
 // views, which return at once and are filled by the render server at the next commit, so the first frame never waits
 // on an image. Per frame only layer transforms and opacities change: no layout, no SwiftUI state, no image work. The
-// strips are cut at one size, so a rotation or a window resize, which changes the stage's size, ends the fold.
+// halves are cut at one size, so a rotation or a window resize, which changes the stage's size, ends the fold.
 final class PageFoldView: UIView {
-    // Its backing layer keeps the strips in one 3D space under one perspective.
+    // Its backing layer keeps the halves in one 3D space under one perspective.
     private final class Paper: UIView {
         override class var layerClass: AnyClass {
             CATransformLayer.self
@@ -19,7 +19,8 @@ final class PageFoldView: UIView {
     // server would sort the card in front of every crease that turns away from the eye.
     private let sheet = UIView()
     private let paper = Paper()
-    private let strips: [UIView]
+    private let top: UIView
+    private let bottom: UIView
     private let shades: [CAGradientLayer]
     // The display stays at the full rate from the pinch's begin until the fold is removed.
     private let presence = FrameRateVote.Presence()
@@ -35,28 +36,30 @@ final class PageFoldView: UIView {
         self.resized = resized
         self.card = card
         let size = page.bounds.size
-        let height = size.height / CGFloat(Theme.Fold.strips)
-        let frames = (0..<Theme.Fold.strips).map {
-            CGRect(x: 0, y: CGFloat($0) * height, width: size.width, height: height)
-        }
-        strips = frames.map { frame in
-            let strip = UIView(frame: frame)
+        let frames = [
+            CGRect(x: 0, y: 0, width: size.width, height: size.height / 2),
+            CGRect(x: 0, y: size.height / 2, width: size.width, height: size.height / 2),
+        ]
+        let halves = frames.map { frame in
+            let half = UIView(frame: frame)
             let snapshot = page.resizableSnapshotView(from: frame, afterScreenUpdates: false, withCapInsets: .zero)!
-            snapshot.frame = strip.bounds
-            strip.addSubview(snapshot)
-            return strip
+            snapshot.frame = half.bounds
+            half.addSubview(snapshot)
+            return half
         }
-        // An even strip's valley crease is its top edge, an odd strip's its bottom.
-        shades = frames.indices.map { index in
+        top = halves[0]
+        bottom = halves[1]
+        // The crease is the top half's lower edge and the bottom half's upper edge.
+        let crease = UIColor.black.withAlphaComponent(Theme.Fold.creaseShade).cgColor
+        let clear = UIColor.black.withAlphaComponent(0).cgColor
+        shades = [[clear, crease], [crease, clear]].map { colors in
             let shade = CAGradientLayer()
-            let crease = UIColor.black.withAlphaComponent(Theme.Fold.creaseShade).cgColor
-            let clear = UIColor.black.withAlphaComponent(0).cgColor
-            shade.colors = index.isMultiple(of: 2) ? [crease, clear] : [clear, crease]
-            shade.frame = CGRect(origin: .zero, size: frames[index].size)
+            shade.colors = colors
+            shade.frame = CGRect(origin: .zero, size: frames[0].size)
             shade.opacity = 0
             return shade
         }
-        strips[0].addSubview(band)
+        top.addSubview(band)
         super.init(frame: CGRect(origin: .zero, size: size))
         autoresizingMask = [.flexibleWidth, .flexibleHeight]
         addSubview(glow)
@@ -67,9 +70,9 @@ final class PageFoldView: UIView {
         paper.frame = sheet.bounds
         paper.layer.sublayerTransform.m34 = -1 / Theme.Fold.perspective
         sheet.addSubview(paper)
-        for (strip, shade) in zip(strips, shades) {
-            strip.layer.addSublayer(shade)
-            paper.addSubview(strip)
+        for (half, shade) in zip(halves, shades) {
+            half.layer.addSublayer(shade)
+            paper.addSubview(half)
         }
     }
 
@@ -90,14 +93,12 @@ final class PageFoldView: UIView {
     }
 
     func set(progress: CGFloat, anchor: CGFloat) {
-        let transforms = PageFold.transforms(
-            progress: progress, strips: strips.count, height: bounds.height, anchor: anchor)
+        let halves = PageFold.halves(progress: progress, height: bounds.height, anchor: anchor)
         let shade = Float(PageFold.shade(progress: progress))
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        for (strip, transform) in zip(strips, transforms) {
-            strip.layer.transform = transform
-        }
+        top.layer.transform = halves.top
+        bottom.layer.transform = halves.bottom
         for layer in shades {
             layer.opacity = shade
         }

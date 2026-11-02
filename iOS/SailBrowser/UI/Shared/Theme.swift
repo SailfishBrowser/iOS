@@ -746,14 +746,13 @@ enum Theme {
         nonisolated static let openScale: CGFloat = 1.8
         // A release projects the progress this far ahead at its speed, so a flick either way can beat the position.
         nonisolated static let projection: CGFloat = 0.12
-        nonisolated static let strips = 4
         // The eye's distance in points: m34 is -1 over it.
         nonisolated static let perspective: CGFloat = 900
-        // The folded bundle fades out over the progress past this.
+        // The folded halves fade out over the progress past this.
         nonisolated static let fadeStart: CGFloat = 0.9
-        // A strip's shade at its valley crease when it stands on end; its ridge edge stays clear.
+        // A half's shade at the crease when it stands on end; its outer edge stays clear.
         static let creaseShade: CGFloat = 0.45
-        // What shows where the strips have folded away, and behind the summary: a dark ground under two soft pools
+        // What shows where the halves have folded away, and behind the summary: a dark ground under two soft pools
         // of the page's tint, the second turned along the colour wheel, as Arc Search draws its blue and pink. Each
         // pool's centre and radii are fractions of the screen.
         static let ground = Palette.uiHex(0x0E0E12)

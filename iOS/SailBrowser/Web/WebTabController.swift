@@ -117,8 +117,6 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     @ObservationIgnored private var finishTask: Task<Void, Never>?
     @ObservationIgnored private var refreshNavigation: WKNavigation?
     @ObservationIgnored private var landingTask: Task<Void, Never>?
-    @ObservationIgnored private var lastPullHaptic: ContinuousClock.Instant?
-    @ObservationIgnored private var pullClock: FrameClock?
     @ObservationIgnored private var readerableTask: Task<Void, Never>?
     // The page's text for a summary, read once the page settles, for the URL it was read on.
     @ObservationIgnored private(set) var pageContent: PageContent?
@@ -1181,21 +1179,12 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
             haptics.fire(isBarHidden ? .barHide : .barShow)
         }
         if tracking, offsetY < 0 {
-            haptics.prepare(.pullTick, .pullArm)
+            haptics.prepare(.pullArm)
         }
         if tracking, let event = pull.update(overscroll: max(0, -offsetY)) {
             switch event {
-            // A fast pull crosses the steps a frame or two apart; a tick too close to the last pull haptic records
-            // silently, so the ratchet never smears into the arm.
-            case .ticked(let step):
-                let spaced = lastPullHaptic.map { haptics.now - $0 >= Theme.Haptic.pullTickGap } ?? true
-                if spaced {
-                    lastPullHaptic = haptics.now
-                }
-                haptics.fire(.pullTick, playing: spaced, step: step)
             case .armed:
                 isPullArmed = true
-                lastPullHaptic = haptics.now
                 haptics.fire(.pullArm)
             case .rearmed:
                 isPullArmed = true
@@ -1203,22 +1192,13 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
                 isPullArmed = false
             }
         }
-        if tracking, pull.isPulling, pullClock == nil {
-            pullClock = FrameClock { [weak self] _ in
-                guard let self else { return false }
-                pullFrame()
-                return pullClock != nil
-            }
+        // The pulse under the finger follows the pull's distance, and holds while the finger rests.
+        if tracking, pull.isPulling {
+            haptics.drive(Theme.Haptic.pulse, Theme.Haptic.pulseLevel(pull.progress))
         }
         if pull.progress != pullProgress {
             pullProgress = pull.progress
         }
-    }
-
-    // Each frame of a pull drives the texture under the finger from the page's movement in that frame, so a finger at
-    // rest is silent whatever the last scroll said.
-    func pullFrame() {
-        haptics.drive(Theme.Haptic.pullTexture, pull.level(at: haptics.now))
     }
 
     private func settleHold(in scrollView: UIScrollView) {
@@ -1286,11 +1266,8 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
 
     @discardableResult
     func released() -> Bool {
-        pullClock?.stop()
-        pullClock = nil
-        haptics.stop(Theme.Haptic.pullTexture)
+        haptics.stop(Theme.Haptic.pulse)
         let refreshes = pull.release()
-        lastPullHaptic = nil
         if isPullArmed {
             isPullArmed = false
         }

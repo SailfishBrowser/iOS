@@ -7,23 +7,17 @@ import UIKit.UIGestureRecognizerSubclass
 nonisolated enum HapticEvent: CaseIterable, Sendable {
     case switcherOpened, tabSwitched, searchOpened, menuOpened, buttonTap,
          tabOpened, refreshArmed, pinToggled, longPress, linkCopied, zoomStepped, dataCleared, tabPaged,
-         recentArmed, refreshNearing, refreshLanded, foldCommitted
+         recentArmed, refreshLanded, foldCommitted
 }
 
-// One Core Haptics event. Intensity is strength; sharpness runs from round (0) to crisp (1). A pulse with no fade is
-// a transient; one with a fade is continuous, and its intensity falls to nothing over the fade so it never buzzes.
+// One Core Haptics transient. Intensity is strength; sharpness runs from round (0) to crisp (1).
 nonisolated struct HapticPulse: Hashable, Sendable {
     let at: TimeInterval
     let intensity: Float
     let sharpness: Float
-    let fade: TimeInterval
 
     static func tap(_ intensity: Float, _ sharpness: Float, at: TimeInterval = 0) -> HapticPulse {
-        HapticPulse(at: at, intensity: intensity, sharpness: sharpness, fade: 0)
-    }
-
-    static func fade(_ intensity: Float, _ sharpness: Float, over fade: TimeInterval, at: TimeInterval = 0) -> HapticPulse {
-        HapticPulse(at: at, intensity: intensity, sharpness: sharpness, fade: fade)
+        HapticPulse(at: at, intensity: intensity, sharpness: sharpness)
     }
 }
 
@@ -36,25 +30,15 @@ nonisolated struct HapticPattern: Hashable, Sendable {
 
     func coreHaptics(strength: Float) throws -> CHHapticPattern {
         let events = pulses.map { pulse in
-            let parameters = [
-                CHHapticEventParameter(parameterID: .hapticIntensity, value: pulse.intensity * strength),
-                CHHapticEventParameter(parameterID: .hapticSharpness, value: pulse.sharpness),
-            ]
-            return pulse.fade == 0
-                ? CHHapticEvent(eventType: .hapticTransient, parameters: parameters, relativeTime: pulse.at)
-                : CHHapticEvent(
-                    eventType: .hapticContinuous, parameters: parameters, relativeTime: pulse.at, duration: pulse.fade)
-        }
-        let fades = pulses.filter { $0.fade > 0 }.map { pulse in
-            CHHapticParameterCurve(
-                parameterID: .hapticIntensityControl,
-                controlPoints: [
-                    CHHapticParameterCurve.ControlPoint(relativeTime: 0, value: 1),
-                    CHHapticParameterCurve.ControlPoint(relativeTime: pulse.fade, value: 0),
+            CHHapticEvent(
+                eventType: .hapticTransient,
+                parameters: [
+                    CHHapticEventParameter(parameterID: .hapticIntensity, value: pulse.intensity * strength),
+                    CHHapticEventParameter(parameterID: .hapticSharpness, value: pulse.sharpness),
                 ],
                 relativeTime: pulse.at)
         }
-        return try CHHapticPattern(events: events, parameterCurves: fades)
+        return try CHHapticPattern(events: events, parameters: [])
     }
 }
 
@@ -481,12 +465,12 @@ nonisolated struct HapticThrottle: Sendable {
         }
     }
 
-    // A silent fire records the interaction for the probes without playing. The step picks a pull tick's pattern.
-    func fire(_ interaction: Interaction, playing: Bool = true, step: Int = 0) {
+    // A silent fire records the interaction for the probes without playing.
+    func fire(_ interaction: Interaction, playing: Bool = true) {
         let event = Theme.Feedback.event(for: interaction)
         var played = false
         if let event, playing {
-            let feedback = Theme.Feedback.feedback(for: event, step: step)
+            let feedback = Theme.Feedback.feedback(for: event)
             played = throttle.admits(feedback, at: sink.now)
             if played {
                 sink.play(feedback)

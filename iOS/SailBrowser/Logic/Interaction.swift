@@ -8,7 +8,7 @@ nonisolated enum Interaction: String, CaseIterable, Sendable {
     case cardLift, cardArchiveArm, cardThrow, cardReturn, deckEmptied
     case plusTap, searchTyping, searchClear, suggestionTap, searchSubmit
     case searchDragDismiss, searchDragReturn, searchDimTap, searchGrabDuringOpen
-    case pullTick, pullArm, pullRelease, refreshLand
+    case pullArm, pullRelease, refreshLand
     case barHide, barShow, barIntro, barSwipe, barSwipeTick, barSwipeSettle
     case chevronTap, chevronLongPress
     case barTranslate

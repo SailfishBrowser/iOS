@@ -157,7 +157,7 @@ enum Theme {
             case .readerDragReturn: readerReturn
             case .privateToggle: privateToggle
             // Driven per frame from the finger or the scroll view.
-            case .deckScroll, .cardLift, .pullTick, .pullArm, .searchGrabDuringOpen, .menuGrabDuringOpen, .barSwipe,
+            case .deckScroll, .cardLift, .pullArm, .searchGrabDuringOpen, .menuGrabDuringOpen, .barSwipe,
                 .foldCommit:
                 nil
             // Nothing moves: the card stays opaque, the field clears and the label swaps without animation.
@@ -189,7 +189,6 @@ enum Theme {
                 .buttonTap
             case .barTranslate: .buttonTap
             case .suggestionTap: .tabOpened
-            case .pullTick: .refreshNearing
             case .pullArm: .refreshArmed
             // The arm already promised the refresh; a release tap 100 to 400 ms later read as a double click.
             case .pullRelease: nil
@@ -231,8 +230,7 @@ enum Theme {
             }
         }
 
-        // The step is the pull tick's step; every other event has one pattern.
-        static func feedback(for event: HapticEvent, step: Int = 0) -> HapticFeedback {
+        static func feedback(for event: HapticEvent) -> HapticFeedback {
             switch event {
             case .switcherOpened, .tabSwitched, .buttonTap, .searchOpened, .menuOpened, .tabOpened,
                 .recentArmed:
@@ -240,7 +238,6 @@ enum Theme {
             case .longPress: Haptic.rigid
             case .pinToggled, .zoomStepped, .tabPaged: Haptic.selection
             case .linkCopied, .dataCleared: Haptic.success
-            case .refreshNearing: Haptic.refreshTicks[step]
             case .refreshArmed: Haptic.refreshArm
             case .refreshLanded: Haptic.refreshLand
             case .foldCommitted: Haptic.foldCommit
@@ -265,40 +262,21 @@ enum Theme {
         static let rigid = HapticFeedback.pattern(HapticPattern(.tap(0.55, 0.8)))
         static let selection = HapticFeedback.selection
         static let success = HapticFeedback.notification(.success)
-        // The pull's ratchet: one tap per Refresh.tickStep of travel, out and back, rising through this range a step
-        // at a time toward the arm. The range's end is the arm's own step, so the last tick sits a step under it.
-        static let pullTickIntensity: ClosedRange<Float> = 0.3...0.55
-        static let pullTickSharpness: Float = 0.6
-        static let refreshTicks = (1..<Int(Refresh.armDistance / Refresh.tickStep)).map { step in
-            let share = Float(step) / Float(Refresh.armDistance / Refresh.tickStep)
-            let span = pullTickIntensity.upperBound - pullTickIntensity.lowerBound
-            return HapticFeedback.pattern(
-                HapticPattern(.tap(pullTickIntensity.lowerBound + span * share, pullTickSharpness)))
-        }
-        // A crisp lead tick primes the skin for the thock 15 ms later (WWDC19 810). The body starts once the thock's
-        // cycle ends, so the two never mix above the thock, and fades out in 40 ms.
-        static let refreshArm = HapticFeedback.pattern(
-            HapticPattern(.tap(0.4, 0.9), .tap(0.8, 0.45, at: 0.015), .fade(0.4, 0.15, over: 0.04, at: 0.03)))
-        // A pull tick closer than this to the last pull haptic is skipped: a fast pull crosses the steps about 30 ms
-        // apart, and back-to-back taps merge into a buzz.
-        static let pullTickGap: Duration = .milliseconds(60)
-        // The pull's texture: a continuous event under the finger from the pull's first frame to its release. Its
-        // intensity follows the page's speed each frame, full at pullTextureSpeed points per second and nothing while
-        // the finger rests; its sharpness rises through its range with the pull. Core Haptics ends a continuous event
-        // at 30 s, so a pull held longer than that goes quiet until the release.
-        static let pullTexture = HapticTexture(intensity: 0.3, sharpness: 0.1...0.4)
-        nonisolated static let pullTextureSpeed: CGFloat = 1500
-        // The fold's pulse: a continuous event under the fingers from the pinch's first frame to the lift, round and
-        // low. Its intensity rises with the fold's progress from pulseFloor of its own to all of it, and its sharpness
-        // through its range, so the fingers feel the paper close without a single tick.
+        // The pull's one tap as it arms, the thock the old ratchet led up to.
+        static let refreshArm = HapticFeedback.pattern(HapticPattern(.tap(0.8, 0.45)))
+        // The pulse under the fingers as the page folds and as the page is pulled to refresh: a continuous event from
+        // the gesture's first frame to the lift, round and low. Its intensity rises with the gesture's progress from
+        // pulseFloor of its own to all of it, and its sharpness through its range, so the fingers feel the motion
+        // without a single tick. Core Haptics ends a continuous event at 30 s, so a pull held longer than that goes
+        // quiet until the release.
         static let pulse = HapticTexture(intensity: 0.5, sharpness: 0.1...0.3)
         static let pulseFloor: Float = 0.3
-        static let textures = [pullTexture, pulse]
+        static let textures = [pulse]
         // One soft tap as the fold crosses the point where a release at rest completes it, either way.
         static let foldCommit = HapticFeedback.pattern(HapticPattern(.tap(0.5, 0.3)))
         // A double tap as the fresh page shows, the second a touch firmer.
         static let refreshLand = HapticFeedback.pattern(HapticPattern(.tap(0.5, 0.5), .tap(0.6, 0.5, at: 0.07)))
-        static let all = [medium, rigid, selection, success] + refreshTicks + [refreshArm, refreshLand, foldCommit]
+        static let all = [medium, rigid, selection, success, refreshArm, refreshLand, foldCommit]
 
         static func pulseLevel(_ progress: CGFloat) -> HapticTexture.Level {
             let share = Float(progress)
@@ -326,7 +304,7 @@ enum Theme {
 
         static func budget(for interaction: Interaction) -> LatencyBudget {
             switch interaction {
-            case .cardArchiveArm, .pullTick, .pullArm, .barSwipeTick, .recentArm, .foldCommit: .frames(0)
+            case .cardArchiveArm, .pullArm, .barSwipeTick, .recentArm, .foldCommit: .frames(0)
             case .barTranslate: .frames(2)
             case .launch, .barIntro, .clearData, .refreshLand: .timed
             case .foregroundRaise, .chevronLongPress, .archiveOpen, .macTabsOpen, .settingsOpen, .archiveDelete,
@@ -875,9 +853,6 @@ enum Theme {
 
     enum Refresh {
         nonisolated static let armDistance: CGFloat = 150
-        // The pull ticks each time it crosses a multiple of this distance, out and back, until it arms; the arm
-        // distance is a whole number of steps, the last of them the line.
-        nonisolated static let tickStep: CGFloat = 10
         // Arcs at 0.24, 0.38 and 0.46 sit at 0.92, 0.93 and 0.94 of the closed radius.
         nonisolated static let ringStartScale: CGFloat = 0.89
         // On the arm the ring pops to 1.146 at 150 ms and is back at 1.0 by 300 ms.

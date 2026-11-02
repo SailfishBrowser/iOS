@@ -31,7 +31,7 @@ enum PolishDemo {
 
     // Fired inside scripted steps; the log shows them under their step.
     static let covered: Set<Interaction> = [
-        .cardLift, .barIntro, .deckEmptied, .pullTick, .refreshLand,
+        .cardLift, .barIntro, .deckEmptied, .refreshLand,
     ]
 
     // Real launches measure launch and foregroundRaise; the device pass checks the rest by hand.

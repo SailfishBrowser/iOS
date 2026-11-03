@@ -19,6 +19,8 @@ struct DeckView: View {
         let id = UUID()
         let startTime: Date
         let activeIndex: Int
+        // The deck's velocity as a finger's (pt/s) when the touch caught it, which the release adds to its own.
+        let caught: CGFloat
         var gesture: DeckGesture
         var liftBase: CGFloat = 0
     }
@@ -281,7 +283,7 @@ struct DeckView: View {
     }
 
     private func snap(to target: CGFloat, layout: CardLayout) {
-        driver.run(layout.page(from: position, to: target, shift: driver.shift, start: .now))
+        driver.run(layout.page(from: position, to: target, velocity: 0, shift: driver.shift, start: .now))
     }
 
     private func returnLift(_ id: UUID, velocity: CGFloat, layout: CardLayout) {
@@ -340,13 +342,14 @@ struct DeckView: View {
         driver.finishDeparture()
         let tabs = orderedTabs
         guard let activeIndex = tabs.firstIndex(where: { $0.id == env.browser.activeTabID }) else { return }
+        let caught = driver.motion.map { layout.fingerVelocity($0, at: .now) } ?? 0
         if driver.motion != nil {
             jump(to: position, shift: driver.shift)
         }
         let range = layout.visibleRange(from: position, to: position, count: tabs.count)
         let slots = slots(tabs)
         drag = Drag(
-            startTime: value.time, activeIndex: activeIndex,
+            startTime: value.time, activeIndex: activeIndex, caught: caught,
             gesture: DeckGesture(
                 start: CardLayout.unstretched(position, last: CGFloat(tabs.count - 1)),
                 cardIndex: layout.card(
@@ -425,9 +428,9 @@ struct DeckView: View {
             let last = CGFloat(tabs.count - 1)
             let from = CardLayout.stretched(
                 gesture.start - gesture.effective(value.translation).width / layout.stride, last: last)
-            let target = layout.releaseTarget(
-                from: from, velocity: lastMove.hasRested(at: value) ? 0 : value.velocity.width, count: tabs.count)
-            driver.run(layout.page(from: from, to: target, shift: driver.shift, start: .now))
+            let velocity = lastMove.hasRested(at: value) ? 0 : value.velocity.width + current.caught
+            let target = layout.releaseTarget(from: from, velocity: velocity, count: tabs.count)
+            driver.run(layout.page(from: from, to: target, velocity: velocity, shift: driver.shift, start: .now))
             trimSnapshots(tabs, keeping: CardLayout.span(from: from, to: target))
         case .vertical:
             guard let index = gesture.cardIndex else {

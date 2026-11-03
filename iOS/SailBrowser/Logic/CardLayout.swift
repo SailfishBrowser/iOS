@@ -360,10 +360,10 @@ nonisolated struct CardLayout: Sendable {
     }
 
     func releaseTarget(from position: CGFloat, velocity: CGFloat, count: Int) -> CGFloat {
-        let carry = CGFloat(Theme.Motion.deckPageDecay.carry(speed: Double(abs(velocity) / stride)))
-        let projected = (velocity < 0 ? position + carry : position - carry).rounded()
+        let decay = Theme.Motion.deckPageDecay
+        let projected = (position - velocity * CGFloat(decay.timeConstant(velocity: velocity)) / stride).rounded()
         let card =
-            abs(velocity) < Theme.Gesture.deckFlickVelocity
+            !decay.flicks(velocity)
             ? projected
             : velocity < 0 ? max(projected, position.rounded(.down) + 1) : min(projected, position.rounded(.up) - 1)
         return min(max(card, 0), CGFloat(count - 1))
@@ -373,10 +373,10 @@ nonisolated struct CardLayout: Sendable {
         from position: CGFloat, to target: CGFloat, velocity: CGFloat, shift: [UUID: CGFloat],
         start: ContinuousClock.Instant
     ) -> DeckMotion {
+        let decay = Theme.Motion.deckPageDecay
         let distance = target - position
-        let rate = max(
-            distance == 0 ? 0 : Double(-velocity / stride / distance),
-            1 / Theme.Motion.deckPageDecay.timeConstant(cards: Double(abs(distance))))
+        let toward = distance == 0 ? 0 : Double(-velocity / stride / distance)
+        let rate = decay.flicks(velocity) && toward > 0 ? toward : max(toward, 1 / decay.fast)
         return DeckMotion(
             from: position, to: target, shift: shift, velocity: rate, start: start,
             spring: Spring(mass: 1, stiffness: rate * rate, damping: 2 * rate), points: stride,
@@ -579,16 +579,15 @@ nonisolated struct DeckSnap: Equatable, Sendable {
 
 nonisolated struct DeckDecay: Sendable {
     let fast: Double
-    let slow: Double
-    let exponent: Double
+    let flick: Double
+    let flickVelocity: CGFloat
 
-    func timeConstant(cards: Double) -> Double {
-        min(fast * pow(max(cards, 1), exponent), slow)
+    func flicks(_ velocity: CGFloat) -> Bool {
+        abs(velocity) >= flickVelocity
     }
 
-    func carry(speed: Double) -> Double {
-        let fastCarry = speed * fast
-        return min(max(fastCarry, pow(fastCarry, 1 / (1 - exponent))), speed * slow)
+    func timeConstant(velocity: CGFloat) -> Double {
+        flicks(velocity) ? flick : fast
     }
 }
 

@@ -19,7 +19,7 @@ struct DeckView: View {
         let id = UUID()
         let startTime: Date
         let activeIndex: Int
-        // The deck's velocity as a finger's (pt/s) when the touch caught it, which the release adds to its own.
+        // The release velocity (pt/s) of the settle the touch caught, which a release in its direction adds to its own.
         let caught: CGFloat
         var gesture: DeckGesture
         var liftBase: CGFloat = 0
@@ -342,7 +342,7 @@ struct DeckView: View {
         driver.finishDeparture()
         let tabs = orderedTabs
         guard let activeIndex = tabs.firstIndex(where: { $0.id == env.browser.activeTabID }) else { return }
-        let caught = driver.motion.map { layout.fingerVelocity($0, at: .now) } ?? 0
+        let caught = driver.motion.map { layout.carried($0, at: .now) } ?? 0
         if driver.motion != nil {
             jump(to: position, shift: driver.shift)
         }
@@ -428,7 +428,8 @@ struct DeckView: View {
             let last = CGFloat(tabs.count - 1)
             let from = CardLayout.stretched(
                 gesture.start - gesture.effective(value.translation).width / layout.stride, last: last)
-            let velocity = lastMove.hasRested(at: value) ? 0 : value.velocity.width + current.caught
+            let velocity =
+                lastMove.hasRested(at: value) ? 0 : CardLayout.boosted(value.velocity.width, caught: current.caught)
             let target = layout.releaseTarget(from: from, velocity: velocity, count: tabs.count)
             driver.run(layout.page(from: from, to: target, velocity: velocity, shift: driver.shift, start: .now))
             trimSnapshots(tabs, keeping: CardLayout.span(from: from, to: target))

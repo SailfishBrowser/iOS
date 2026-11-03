@@ -359,12 +359,12 @@ nonisolated struct CardLayout: Sendable {
         return hits.max { $0.zIndex < $1.zIndex }?.index
     }
 
-    // A horizontal release at this finger velocity (pt/s): the card nearest where it would coast at UIKit's fast
-    // deceleration, so a faster flick carries more cards, and past the flick velocity at least the next card beyond the
-    // release in its direction of travel, within the deck's ends.
+    // A horizontal release at this finger velocity (pt/s): the card nearest where it would coast at the decay of its
+    // own carry, so a faster flick carries more cards and slows more gently, and past the flick velocity at least the
+    // next card beyond the release in its direction of travel, within the deck's ends.
     func releaseTarget(from position: CGFloat, velocity: CGFloat, count: Int) -> CGFloat {
-        let projected =
-            (position - Magnet.project(velocity: velocity, rate: Theme.Gesture.decelerationFast) / stride).rounded()
+        let carry = CGFloat(Theme.Motion.deckPageDecay.carry(speed: Double(abs(velocity) / stride)))
+        let projected = (velocity < 0 ? position + carry : position - carry).rounded()
         let card =
             abs(velocity) < Theme.Gesture.deckFlickVelocity
             ? projected
@@ -373,22 +373,31 @@ nonisolated struct CardLayout: Sendable {
     }
 
     // The settle on a card from a release at this finger velocity (pt/s): it starts at the finger's speed, never slower
-    // than the page rate times the distance left, and eases out to rest on it with no overshoot.
+    // than the distance left over the time constant for that carry, and eases out to rest on it with no overshoot.
     func page(
         from position: CGFloat, to target: CGFloat, velocity: CGFloat, shift: [UUID: CGFloat],
         start: ContinuousClock.Instant
     ) -> DeckMotion {
         let distance = target - position
-        let rate = max(distance == 0 ? 0 : Double(-velocity / stride / distance), Theme.Motion.deckPageRate)
+        let rate = max(
+            distance == 0 ? 0 : Double(-velocity / stride / distance),
+            1 / Theme.Motion.deckPageDecay.timeConstant(cards: Double(abs(distance))))
         return DeckMotion(
             from: position, to: target, shift: shift, velocity: rate, start: start,
-            spring: DeckSnap.stiffened(DeckSnap.page, for: rate), points: stride)
+            spring: Spring(mass: 1, stiffness: rate * rate, damping: 2 * rate), points: stride,
+            release: velocity * distance < 0 ? velocity : 0)
     }
 
-    // The finger velocity (pt/s) that moves the deck as this motion does now, so a release adds a moving deck's to its
-    // own.
-    func fingerVelocity(_ motion: DeckMotion, at time: ContinuousClock.Instant) -> CGFloat {
-        -motion.velocity(at: time) * stride
+    // The release velocity (pt/s) a settle still running carries into the next release, undecayed.
+    func carried(_ motion: DeckMotion, at time: ContinuousClock.Instant) -> CGFloat {
+        motion.isSettled(at: time) ? 0 : motion.release
+    }
+
+    // A release's finger velocity (pt/s) with the velocity it caught: a flick in the caught settle's direction adds
+    // that settle's release velocity to its own, as a scroll view's repeated flicks do, and one against it starts from
+    // its own.
+    static func boosted(_ velocity: CGFloat, caught: CGFloat) -> CGFloat {
+        velocity * caught > 0 ? velocity + caught : velocity
     }
 
     // The slot drawn nearest the position, the later one on a tie.
@@ -517,7 +526,6 @@ nonisolated struct CardLayout: Sendable {
 
 nonisolated struct DeckSnap: Equatable, Sendable {
     static let snap = Theme.Motion.deckSnap.spring
-    static let page = Theme.Motion.deckPage.spring
     static let gapClose = Theme.Motion.archiveGapClose.spring
     static let zoom = Theme.Motion.deckZoom.spring
     static let olderZoom = Theme.Motion.deckOlderZoom.spring
@@ -579,6 +587,24 @@ nonisolated struct DeckSnap: Equatable, Sendable {
     }
 }
 
+// An exponential ease-out whose time constant (s) grows with its carry in cards: the fast one up to a card, then as the
+// carry to the exponent, up to the slow one.
+nonisolated struct DeckDecay: Sendable {
+    let fast: Double
+    let slow: Double
+    let exponent: Double
+
+    func timeConstant(cards: Double) -> Double {
+        min(fast * pow(max(cards, 1), exponent), slow)
+    }
+
+    // The carry in cards that a start at this speed in cards per second coasts at that carry's own time constant.
+    func carry(speed: Double) -> Double {
+        let fastCarry = speed * fast
+        return min(max(fastCarry, pow(fastCarry, 1 / (1 - exponent))), speed * slow)
+    }
+}
+
 nonisolated struct DeckMotion: Equatable, Sendable {
     let curve: DeckSnap
     let from: CGFloat
@@ -586,10 +612,12 @@ nonisolated struct DeckMotion: Equatable, Sendable {
     let shift: [UUID: CGFloat]
     // Drawn points per unit of position; the curve runs over the whole trip, so it carries points times the distance.
     let points: CGFloat?
+    // The finger velocity (pt/s) of the release this settle runs in the direction of, or zero.
+    let release: CGFloat
 
     init(
         from: CGFloat, to: CGFloat, shift: [UUID: CGFloat], velocity: Double, start: ContinuousClock.Instant,
-        spring: Spring = DeckSnap.snap, points: CGFloat? = nil
+        spring: Spring = DeckSnap.snap, points: CGFloat? = nil, release: CGFloat = 0
     ) {
         curve = DeckSnap(
             from: 0, to: 1, velocity: velocity, start: start, spring: spring, points: points.map { $0 * abs(to - from) })
@@ -597,15 +625,11 @@ nonisolated struct DeckMotion: Equatable, Sendable {
         self.to = to
         self.shift = shift
         self.points = points
+        self.release = release
     }
 
     func isSettled(at time: ContinuousClock.Instant) -> Bool {
         curve.isSettled(at: time)
-    }
-
-    // Positions per second.
-    func velocity(at time: ContinuousClock.Instant) -> CGFloat {
-        isSettled(at: time) ? 0 : (to - from) * curve.velocity(at: time)
     }
 
     func retargeted(to target: CGFloat, at time: ContinuousClock.Instant, spring: Spring) -> DeckMotion? {

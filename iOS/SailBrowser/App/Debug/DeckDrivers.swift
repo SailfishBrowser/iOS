@@ -2,7 +2,6 @@
 import UIKit
 
 enum DeckDrivers {
-    // Two cards left at a steady 600 pt/s, so the settle lands on another card.
     private static let scrollCards: CGFloat = 2
     private static let scrollSpeed: CGFloat = 600
     // Slow lifts ease to a near stop before release. In card heights.

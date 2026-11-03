@@ -19,7 +19,6 @@ struct DeckView: View {
         let id = UUID()
         let startTime: Date
         let activeIndex: Int
-        // The release velocity (pt/s) of the settle the touch caught, which a release in its direction adds to its own.
         let caught: CGFloat
         var gesture: DeckGesture
         var liftBase: CGFloat = 0

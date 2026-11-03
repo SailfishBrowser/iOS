@@ -385,6 +385,12 @@ nonisolated struct CardLayout: Sendable {
             spring: DeckSnap.stiffened(DeckSnap.page, for: rate), points: stride)
     }
 
+    // The finger velocity (pt/s) that moves the deck as this motion does now, so a release adds a moving deck's to its
+    // own.
+    func fingerVelocity(_ motion: DeckMotion, at time: ContinuousClock.Instant) -> CGFloat {
+        -motion.velocity(at: time) * stride
+    }
+
     // The slot drawn nearest the position, the later one on a tie.
     static func nearest(_ slots: [CGFloat], to position: CGFloat) -> Int {
         var index = 0
@@ -595,6 +601,11 @@ nonisolated struct DeckMotion: Equatable, Sendable {
 
     func isSettled(at time: ContinuousClock.Instant) -> Bool {
         curve.isSettled(at: time)
+    }
+
+    // Positions per second.
+    func velocity(at time: ContinuousClock.Instant) -> CGFloat {
+        isSettled(at: time) ? 0 : (to - from) * curve.velocity(at: time)
     }
 
     func retargeted(to target: CGFloat, at time: ContinuousClock.Instant, spring: Spring) -> DeckMotion? {

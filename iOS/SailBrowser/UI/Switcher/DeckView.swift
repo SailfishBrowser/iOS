@@ -281,7 +281,7 @@ struct DeckView: View {
     }
 
     private func snap(to target: CGFloat, layout: CardLayout) {
-        driver.run(layout.page(from: position, to: target, shift: driver.shift, start: .now))
+        driver.run(layout.page(from: position, to: target, velocity: 0, shift: driver.shift, start: .now))
     }
 
     private func returnLift(_ id: UUID, velocity: CGFloat, layout: CardLayout) {
@@ -425,9 +425,9 @@ struct DeckView: View {
             let last = CGFloat(tabs.count - 1)
             let from = CardLayout.stretched(
                 gesture.start - gesture.effective(value.translation).width / layout.stride, last: last)
-            let target = layout.releaseTarget(
-                from: from, velocity: lastMove.hasRested(at: value) ? 0 : value.velocity.width, count: tabs.count)
-            driver.run(layout.page(from: from, to: target, shift: driver.shift, start: .now))
+            let velocity = lastMove.hasRested(at: value) ? 0 : value.velocity.width
+            let target = layout.releaseTarget(from: from, velocity: velocity, count: tabs.count)
+            driver.run(layout.page(from: from, to: target, velocity: velocity, shift: driver.shift, start: .now))
             trimSnapshots(tabs, keeping: CardLayout.span(from: from, to: target))
         case .vertical:
             guard let index = gesture.cardIndex else {

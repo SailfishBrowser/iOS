@@ -359,9 +359,6 @@ nonisolated struct CardLayout: Sendable {
         return hits.max { $0.zIndex < $1.zIndex }?.index
     }
 
-    // A horizontal release at this finger velocity (pt/s): the card nearest where it would coast at the decay of its
-    // own carry, so a faster flick carries more cards and slows more gently, and past the flick velocity at least the
-    // next card beyond the release in its direction of travel, within the deck's ends.
     func releaseTarget(from position: CGFloat, velocity: CGFloat, count: Int) -> CGFloat {
         let carry = CGFloat(Theme.Motion.deckPageDecay.carry(speed: Double(abs(velocity) / stride)))
         let projected = (velocity < 0 ? position + carry : position - carry).rounded()
@@ -372,8 +369,6 @@ nonisolated struct CardLayout: Sendable {
         return min(max(card, 0), CGFloat(count - 1))
     }
 
-    // The settle on a card from a release at this finger velocity (pt/s): it starts at the finger's speed, never slower
-    // than the distance left over the time constant for that carry, and eases out to rest on it with no overshoot.
     func page(
         from position: CGFloat, to target: CGFloat, velocity: CGFloat, shift: [UUID: CGFloat],
         start: ContinuousClock.Instant
@@ -388,19 +383,14 @@ nonisolated struct CardLayout: Sendable {
             release: velocity * distance < 0 ? velocity : 0)
     }
 
-    // The release velocity (pt/s) a settle still running carries into the next release, undecayed.
     func carried(_ motion: DeckMotion, at time: ContinuousClock.Instant) -> CGFloat {
         motion.isSettled(at: time) ? 0 : motion.release
     }
 
-    // A release's finger velocity (pt/s) with the velocity it caught: a flick in the caught settle's direction adds
-    // that settle's release velocity to its own, as a scroll view's repeated flicks do, and one against it starts from
-    // its own.
     static func boosted(_ velocity: CGFloat, caught: CGFloat) -> CGFloat {
         velocity * caught > 0 ? velocity + caught : velocity
     }
 
-    // The slot drawn nearest the position, the later one on a tie.
     static func nearest(_ slots: [CGFloat], to position: CGFloat) -> Int {
         var index = 0
         for (candidate, slot) in slots.enumerated() where abs(slot - position) <= abs(slots[index] - position) {
@@ -587,8 +577,6 @@ nonisolated struct DeckSnap: Equatable, Sendable {
     }
 }
 
-// An exponential ease-out whose time constant (s) grows with its carry in cards: the fast one up to a card, then as the
-// carry to the exponent, up to the slow one.
 nonisolated struct DeckDecay: Sendable {
     let fast: Double
     let slow: Double
@@ -598,7 +586,6 @@ nonisolated struct DeckDecay: Sendable {
         min(fast * pow(max(cards, 1), exponent), slow)
     }
 
-    // The carry in cards that a start at this speed in cards per second coasts at that carry's own time constant.
     func carry(speed: Double) -> Double {
         let fastCarry = speed * fast
         return min(max(fastCarry, pow(fastCarry, 1 / (1 - exponent))), speed * slow)
@@ -612,7 +599,6 @@ nonisolated struct DeckMotion: Equatable, Sendable {
     let shift: [UUID: CGFloat]
     // Drawn points per unit of position; the curve runs over the whole trip, so it carries points times the distance.
     let points: CGFloat?
-    // The finger velocity (pt/s) of the release this settle runs in the direction of, or zero.
     let release: CGFloat
 
     init(

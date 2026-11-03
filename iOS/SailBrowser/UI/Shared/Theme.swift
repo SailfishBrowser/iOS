@@ -7,11 +7,6 @@ enum Theme {
         nonisolated static let deckZoom = MotionToken.spring(duration: 0.22, bounce: 0.025)
         nonisolated static let deckOlderZoom = MotionToken.spring(duration: 0.34, bounce: 0.1)
         nonisolated static let deckSnap = MotionToken.physical(mass: 1, stiffness: 320, damping: 32)
-        // The deck's settle on a card eases out exponentially with no overshoot. A one-card settle keeps the time
-        // constant measured on Arc Search's switcher, UIKit's fast scroll deceleration of 0.099 s, and lands in about
-        // 0.6 s. A longer carry decays more slowly, its time constant growing as the carry in cards to the power 0.29,
-        // to 0.16 s at five cards, which land in about twice the time of one, and 0.19 s at ten, and it never passes
-        // UIKit's normal deceleration of 0.499 s.
         nonisolated static let deckPageDecay = DeckDecay(
             fast: Double(Magnet.project(velocity: 1, rate: Gesture.decelerationFast)),
             slow: Double(Magnet.project(velocity: 1, rate: Gesture.decelerationNormal)), exponent: 0.29)
@@ -805,8 +800,6 @@ enum Theme {
         // flick across two tabs played two ticks). Past either end it stretches this fraction of a page.
         nonisolated static let barSwipeCommitFraction: CGFloat = 0.5
         nonisolated static let barSwipeFlickVelocity: CGFloat = 400
-        // A deck release this fast settles at least on the next card in its direction, as the bar swipe commits; a faster
-        // one carries as many cards as its coast at the fast deceleration would.
         nonisolated static let deckFlickVelocity = barSwipeFlickVelocity
         nonisolated static let barSwipeMaxTabs = 1
         // A drag goes 250 pt past the newest tab at full size with no visible stiffness.

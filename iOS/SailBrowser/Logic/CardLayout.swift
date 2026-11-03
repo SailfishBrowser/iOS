@@ -359,12 +359,12 @@ nonisolated struct CardLayout: Sendable {
         return hits.max { $0.zIndex < $1.zIndex }?.index
     }
 
-    // A horizontal release at this finger velocity (pt/s): the card nearest where it would coast at UIKit's fast
-    // deceleration, so a faster flick carries more cards, and past the flick velocity at least the next card beyond the
-    // release in its direction of travel, within the deck's ends.
+    // A horizontal release at this finger velocity (pt/s): the card nearest where it would coast at the decay of its
+    // own carry, so a faster flick carries more cards and slows more gently, and past the flick velocity at least the
+    // next card beyond the release in its direction of travel, within the deck's ends.
     func releaseTarget(from position: CGFloat, velocity: CGFloat, count: Int) -> CGFloat {
-        let projected =
-            (position - Magnet.project(velocity: velocity, rate: Theme.Gesture.decelerationFast) / stride).rounded()
+        let carry = CGFloat(Theme.Motion.deckPageDecay.carry(speed: Double(abs(velocity) / stride)))
+        let projected = (velocity < 0 ? position + carry : position - carry).rounded()
         let card =
             abs(velocity) < Theme.Gesture.deckFlickVelocity
             ? projected
@@ -373,16 +373,18 @@ nonisolated struct CardLayout: Sendable {
     }
 
     // The settle on a card from a release at this finger velocity (pt/s): it starts at the finger's speed, never slower
-    // than the page rate times the distance left, and eases out to rest on it with no overshoot.
+    // than the distance left over the time constant for that carry, and eases out to rest on it with no overshoot.
     func page(
         from position: CGFloat, to target: CGFloat, velocity: CGFloat, shift: [UUID: CGFloat],
         start: ContinuousClock.Instant
     ) -> DeckMotion {
         let distance = target - position
-        let rate = max(distance == 0 ? 0 : Double(-velocity / stride / distance), Theme.Motion.deckPageRate)
+        let rate = max(
+            distance == 0 ? 0 : Double(-velocity / stride / distance),
+            1 / Theme.Motion.deckPageDecay.timeConstant(cards: Double(abs(distance))))
         return DeckMotion(
             from: position, to: target, shift: shift, velocity: rate, start: start,
-            spring: DeckSnap.stiffened(DeckSnap.page, for: rate), points: stride,
+            spring: Spring(mass: 1, stiffness: rate * rate, damping: 2 * rate), points: stride,
             release: velocity * distance < 0 ? velocity : 0)
     }
 
@@ -524,7 +526,6 @@ nonisolated struct CardLayout: Sendable {
 
 nonisolated struct DeckSnap: Equatable, Sendable {
     static let snap = Theme.Motion.deckSnap.spring
-    static let page = Theme.Motion.deckPage.spring
     static let gapClose = Theme.Motion.archiveGapClose.spring
     static let zoom = Theme.Motion.deckZoom.spring
     static let olderZoom = Theme.Motion.deckOlderZoom.spring
@@ -583,6 +584,24 @@ nonisolated struct DeckSnap: Equatable, Sendable {
 
     func position(at time: ContinuousClock.Instant) -> CGFloat {
         isSettled(at: time) ? to : raw(at: (time - start) / .seconds(1))
+    }
+}
+
+// An exponential ease-out whose time constant (s) grows with its carry in cards: the fast one up to a card, then as the
+// carry to the exponent, up to the slow one.
+nonisolated struct DeckDecay: Sendable {
+    let fast: Double
+    let slow: Double
+    let exponent: Double
+
+    func timeConstant(cards: Double) -> Double {
+        min(fast * pow(max(cards, 1), exponent), slow)
+    }
+
+    // The carry in cards that a start at this speed in cards per second coasts at that carry's own time constant.
+    func carry(speed: Double) -> Double {
+        let fastCarry = speed * fast
+        return min(max(fastCarry, pow(fastCarry, 1 / (1 - exponent))), speed * slow)
     }
 }
 

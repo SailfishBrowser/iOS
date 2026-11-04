@@ -173,7 +173,7 @@ struct CardPlacement<Header: View>: ViewModifier {
         #endif
         return CardFace(
             content: content, header: header, isActive: isActive, screen: screen, inner: contentGeometry, clip: g.clip,
-            dim: t.dim, showsCover: covered, coverImage: covered ? coverImage : nil, coverFill: covered ? coverFill : nil,
+            showsCover: covered, coverImage: covered ? coverImage : nil, coverFill: covered ? coverFill : nil,
             coverOpacity: covered ? coverOpacity : 0, isPrivate: isPrivate, privateCoverOpacity: privateCoverOpacity,
             inverse: 1 / layout.restScale, headerWidth: room.width, headerOpacity: t.headerOpacity * room.opacity,
             titleOpacity: t.titleOpacity
@@ -195,7 +195,6 @@ private struct CardFace<Content: View, Header: View>: View {
     let screen: CGSize
     let inner: CardGeometry
     let clip: CardClip
-    let dim: CGFloat
     let showsCover: Bool
     let coverImage: UIImage?
     let coverFill: Color?
@@ -207,7 +206,7 @@ private struct CardFace<Content: View, Header: View>: View {
     let headerOpacity: CGFloat
     let titleOpacity: CGFloat
 
-    // What lies over the dimmed content inside the card's clip: the snapshot or fill cover, the private band under
+    // What lies over the content inside the card's clip: the snapshot or fill cover, the private band under
     // it and the private cover.
     private var covers: some View {
         ZStack {
@@ -240,7 +239,6 @@ private struct CardFace<Content: View, Header: View>: View {
         let unplaced = CardGeometry.identity(height: screen.height)
         ZStack {
             content
-                .overlay(clip.fill(Color.black.opacity(dim)).placed(inner).allowsHitTesting(false))
                 .clipShape(isActive ? unplaced.clip : clip)
             covers
                 .frame(width: screen.width, height: screen.height)

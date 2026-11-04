@@ -640,9 +640,7 @@ enum Theme {
         nonisolated static let pressScaleWide: CGFloat = 0.98
         nonisolated static let emptyDeckStartScale: CGFloat = 0.5
         static let importEditorHeight: CGFloat = 160
-        // A left card dims this much a slot, to this most; an older card fades in over this much of the zoom.
-        nonisolated static let deckLeftDimStep: CGFloat = 0.15
-        nonisolated static let deckLeftMaxDim: CGFloat = 0.3
+        // An older card fades in over this much of the zoom.
         nonisolated static let deckOlderFadeIn: CGFloat = 0.15
     }
 

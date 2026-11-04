@@ -99,10 +99,12 @@ final class SnapshotStore {
     }
 
     func trim(keeping ids: Set<Tab.ID>) {
+        let dropped = thumbnails.filter { !ids.contains($0.key) }.compactMap(\.value.image)
         for (id, thumbnail) in thumbnails where !ids.contains(id) {
             thumbnail.image = nil
         }
         recent.removeAll { !ids.contains($0) }
+        Task.detached { withExtendedLifetime(dropped) {} }
     }
 
     func flush() async {

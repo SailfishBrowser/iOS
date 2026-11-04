@@ -7,6 +7,7 @@ nonisolated struct DeckGesture: Equatable, Sendable {
     let cardIndex: Int?
     private(set) var axis: Axis?
     private var lockTranslation = CGSize.zero
+    private var leadLeft: CGFloat = 1
     var archive: Detent
 
     init(start: CGFloat, cardIndex: Int?, cardHeight: CGFloat) {
@@ -27,5 +28,13 @@ nonisolated struct DeckGesture: Equatable, Sendable {
 
     func effective(_ translation: CGSize) -> CGSize {
         CGSize(width: translation.width - lockTranslation.width, height: translation.height - lockTranslation.height)
+    }
+
+    mutating func lifted(_ translation: CGFloat) -> CGFloat {
+        let lock = Theme.Gesture.deckAxisLock
+        let lead = min(max(lockTranslation.height, -lock), lock)
+        let since = abs(translation - lockTranslation.height)
+        leadLeft = min(leadLeft, max(0, 1 - since / (abs(lead) * Theme.Gesture.tabStackFlickCatchUp)))
+        return translation - lead * leadLeft
     }
 }

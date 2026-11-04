@@ -434,7 +434,6 @@ nonisolated struct CardLayout: Sendable {
         removing index: Int, ids: [UUID], shift: [UUID: CGFloat], position: CGFloat, start: ContinuousClock.Instant
     ) -> DeckArchivePlan {
         var closing: [UUID: CGFloat] = [:]
-        var remaining: [CGFloat] = []
         var excess: [UUID: CGFloat] = [:]
         for (oldIndex, id) in ids.enumerated() where oldIndex != index {
             let amount = shift[id, default: 0] + (oldIndex > index ? 1 : 0)
@@ -444,9 +443,9 @@ nonisolated struct CardLayout: Sendable {
             if amount != 0 {
                 excess[id] = amount
             }
-            remaining.append(CGFloat(remaining.count) + amount)
         }
-        let target = CGFloat(Self.nearest(remaining, to: position))
+        let slots = ids.enumerated().map { CGFloat($0.offset) + shift[$0.element, default: 0] }
+        let target = CGFloat(max(Self.nearest(slots, to: position) - 1, 0))
         return DeckArchivePlan(
             shift: closing,
             motion: DeckMotion(

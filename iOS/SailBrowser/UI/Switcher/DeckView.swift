@@ -30,6 +30,7 @@ struct DeckView: View {
     @State private var drag: Drag?
     @State private var ghosts: [Ghost] = []
     @State private var lastMove = LastMove()
+    @State private var presence: FrameRateVote.Presence?
     #if DEBUG
     @State private var hooksOwner = UUID()
     #endif
@@ -49,6 +50,7 @@ struct DeckView: View {
                             deckGesture(layout: layout),
                             isEnabled: env.ui.deckTakesTouches)
                         .onChange(of: touching) { _, now in
+                            presence = now ? FrameRateVote.Presence() : nil
                             guard !now, let id = drag?.id else { return }
                             Task { cancelDrag(id, layout: layout) }
                         }
@@ -391,7 +393,7 @@ struct DeckView: View {
             driver.move(to: CardLayout.stretched(position, last: CGFloat(tabs.count - 1)))
         case .vertical:
             if let index = current.gesture.cardIndex {
-                let lift = layout.lift(for: translation.height, from: current.liftBase)
+                let lift = layout.lift(for: current.gesture.lifted(value.translation.height), from: current.liftBase)
                 driver.setLift(tabs[index].id, lift)
                 if current.gesture.archive.update(-lift) == .armed {
                     env.haptics.fire(.cardArchiveArm)

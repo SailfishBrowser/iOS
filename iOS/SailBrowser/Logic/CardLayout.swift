@@ -12,7 +12,6 @@ nonisolated struct CardTransform: Equatable, Sendable {
     var opacity: CGFloat
     var headerOpacity: CGFloat
     var titleOpacity: CGFloat
-    var dim: CGFloat
     var zIndex: Double
     // Cut from the card's top, as clipHeight cuts from its bottom; both in drawn points from the card's top.
     var clipTop: CGFloat = 0
@@ -116,8 +115,7 @@ nonisolated struct CardLayout: Sendable {
                 width: left + screen.width * scale / 2 - screen.width / 2, height: bottom - screen.height * scale / 2
                     - screen.height / 2),
             scale: scale, clipHeight: screen.height * scale, rotation: .zero,
-            corner: lerp(displayCorner, cardCorner, arm), opacity: 1, headerOpacity: 0, titleOpacity: 0, dim: 0,
-            zIndex: 0)
+            corner: lerp(displayCorner, cardCorner, arm), opacity: 1, headerOpacity: 0, titleOpacity: 0, zIndex: 0)
         return towardStack(t, drop)
     }
 
@@ -183,7 +181,7 @@ nonisolated struct CardLayout: Sendable {
         var rising = CardTransform(
             offset: .zero, scale: scale, clipHeight: screen.width * scale / aspect,
             rotation: .degrees(buttonTilt * Double(tilt)), corner: lerp(buttonCorner, cardCorner, 1 - left),
-            opacity: 1, headerOpacity: 0, titleOpacity: 0, dim: 0, zIndex: 1)
+            opacity: 1, headerOpacity: 0, titleOpacity: 0, zIndex: 1)
         // The card turns about its drawn centre, so the centre is the finger less the grabbed point turned with it.
         let (w, h) = (screen.width * scale * grab.unit.x, rising.clipHeight * grab.unit.y)
         let (c, s) = (cos(rising.rotation.radians), sin(rising.rotation.radians))
@@ -193,13 +191,13 @@ nonisolated struct CardLayout: Sendable {
         guard land > 0 else { return rising }
         let screenCard = CardTransform(
             offset: .zero, scale: 1, clipHeight: screen.height, rotation: .zero, corner: displayCorner, opacity: 1,
-            headerOpacity: 0, titleOpacity: 0, dim: 0, zIndex: 1)
+            headerOpacity: 0, titleOpacity: 0, zIndex: 1)
         return CardTransform(
             offset: CGSize(
                 width: lerp(rising.offset.width, 0, land), height: lerp(rising.offset.height, 0, land)),
             scale: lerp(rising.scale, 1, land), clipHeight: lerp(rising.clipHeight, screenCard.clipHeight, land),
             rotation: .degrees(rising.rotation.degrees * Double(1 - land)), corner: lerp(rising.corner, displayCorner, land),
-            opacity: lerp(rising.opacity, 1, land), headerOpacity: 0, titleOpacity: 0, dim: 0, zIndex: 1)
+            opacity: lerp(rising.opacity, 1, land), headerOpacity: 0, titleOpacity: 0, zIndex: 1)
     }
 
     // Moves a card toward the tab stack's front card: at 1 it is that
@@ -244,7 +242,7 @@ nonisolated struct CardLayout: Sendable {
         var transform = CardTransform(
             offset: rest.offset, scale: rest.scale, clipHeight: rest.clipHeight, rotation: .zero,
             corner: t == 0 ? 0 : lerp(displayCorner, cardCorner, t), opacity: 1, headerOpacity: t,
-            titleOpacity: max(0, 1 - abs(p)), dim: rest.dim * t,
+            titleOpacity: max(0, 1 - abs(p)),
             zIndex: isActive && t < 1 ? Self.zoomingZIndex : Double(slot))
         if isActive {
             transform.scale = lerp(1, rest.scale, t)
@@ -287,7 +285,7 @@ nonisolated struct CardLayout: Sendable {
         let t = CardTransform(
             offset: CGSize(width: p * pageStride, height: top - screen.height / 2 + screen.height * scale / 2),
             scale: scale, clipHeight: screen.height * scale, rotation: .zero, corner: lerp(displayCorner, pairCorner, arm),
-            opacity: 1, headerOpacity: 0, titleOpacity: 0, dim: 0, zIndex: -abs(p), clipTop: clipTop)
+            opacity: 1, headerOpacity: 0, titleOpacity: 0, zIndex: -abs(p), clipTop: clipTop)
         guard f > 0 else { return t }
         var r = towardStack(t, f)
         r.zIndex = 1
@@ -455,7 +453,7 @@ nonisolated struct CardLayout: Sendable {
     }
 
     private func rest(_ p: CGFloat) -> (
-        center: CGPoint, depth: CGFloat, offset: CGSize, scale: CGFloat, clipHeight: CGFloat, dim: CGFloat
+        center: CGPoint, depth: CGFloat, offset: CGSize, scale: CGFloat, clipHeight: CGFloat
     ) {
         let left =
             p >= 0
@@ -471,8 +469,7 @@ nonisolated struct CardLayout: Sendable {
         let scale = restScale * depth
         let clipHeight = cardSize.height * depth
         return (
-            center, depth, offset(visibleCenter: center, scale: scale, clipHeight: clipHeight), scale, clipHeight,
-            min(Theme.Metrics.deckLeftMaxDim, max(0, -Theme.Metrics.deckLeftDimStep * p))
+            center, depth, offset(visibleCenter: center, scale: scale, clipHeight: clipHeight), scale, clipHeight
         )
     }
 

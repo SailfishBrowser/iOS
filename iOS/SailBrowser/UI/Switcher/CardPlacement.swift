@@ -152,7 +152,7 @@ struct CardPlacement<Header: View>: ViewModifier {
         index == activeIndex || pair != nil ? progress : 1
     }
 
-    // What lies over the dimmed content inside the card's clip: the snapshot or fill cover, the private band under
+    // What lies over the content inside the card's clip: the snapshot or fill cover, the private band under
     // it and the private cover.
     var covers: some View {
         ZStack {
@@ -199,7 +199,6 @@ struct CardPlacement<Header: View>: ViewModifier {
         #endif
         return ZStack {
             content
-                .overlay(clip.fill(Color.black.opacity(t.dim)).placed(inner).allowsHitTesting(false))
                 .clipShape(isActive ? unplaced.clip : clip)
             covers
                 .frame(width: screen.width, height: screen.height)

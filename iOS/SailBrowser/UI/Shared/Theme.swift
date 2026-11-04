@@ -509,6 +509,7 @@ enum Theme {
         static let olderDepthScales: [CGFloat] = [0.98, 0.93]
         static let cardPlaceholderFavicon: CGFloat = 40
         nonisolated static let cardHeaderGap: CGFloat = 10
+        nonisolated static let cardHeaderWidthStep: CGFloat = 8
         static let cardHeaderHeight: CGFloat = 24
         nonisolated static let cardHeaderFavicon: CGFloat = 20
         static let cardHeaderFaviconCorner: CGFloat = 4

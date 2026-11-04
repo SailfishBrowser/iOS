@@ -22,6 +22,7 @@ final class SnapshotStore {
     // every card it wants.
     private var retained: [Tab.ID] = []
     private var recent: [Tab.ID] = []
+    private var decoding: Set<Tab.ID> = []
 
     init(directories: AppDirectories) {
         folder = directories.caches.appending(path: "snapshots")
@@ -72,13 +73,15 @@ final class SnapshotStore {
     }
 
     func preload(_ ids: [Tab.ID]) {
-        for id in ids where thumbnail(for: id).image == nil {
+        for id in ids where thumbnail(for: id).image == nil && decoding.insert(id).inserted {
             let thumbnail = thumbnail(for: id)
             let url = fileURL(id)
             // A landing for a tab removed meanwhile touches nothing: its id would stand in the line with no
             // thumbnail for the budget to trim.
             Task { [weak self] in
-                guard let decoded = await Self.decode(url), thumbnail.image == nil else { return }
+                let decoded = await Self.decode(url)
+                self?.decoding.remove(id)
+                guard let decoded, thumbnail.image == nil else { return }
                 thumbnail.image = decoded.image
                 thumbnail.small = decoded.small
                 guard let self, thumbnails[id] === thumbnail else { return }

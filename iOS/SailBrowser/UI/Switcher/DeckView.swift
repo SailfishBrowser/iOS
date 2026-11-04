@@ -338,6 +338,7 @@ struct DeckView: View {
     // A grab inside a throw's gap close is taken: the thrown card's tab is archived first, then the grab catches the
     // closing deck where its last frame drew it.
     private func began(_ value: DragSample, layout: CardLayout) {
+        lastMove.holdRate()
         driver.finishDeparture()
         let tabs = orderedTabs
         guard let activeIndex = tabs.firstIndex(where: { $0.id == env.browser.activeTabID }) else { return }
@@ -360,6 +361,7 @@ struct DeckView: View {
 
     private func cancelDrag(_ id: UUID, layout: CardLayout) {
         guard let current = drag, current.id == id else { return }
+        lastMove.releaseRate()
         drag = nil
         let tabs = orderedTabs
         if current.gesture.axis == .vertical, let index = current.gesture.cardIndex {
@@ -404,6 +406,7 @@ struct DeckView: View {
     }
 
     private func ended(_ value: DragSample, layout: CardLayout) {
+        lastMove.releaseRate()
         guard let current = drag else { return }
         let tabs = orderedTabs
         let activeIndex = current.activeIndex
@@ -500,6 +503,15 @@ struct DeckView: View {
 private final class LastMove {
     private var translation = CGSize.zero
     private var time = Date.distantPast
+    private var rate: FrameRateVote.Presence?
+
+    func holdRate() {
+        rate = FrameRateVote.Presence()
+    }
+
+    func releaseRate() {
+        rate = nil
+    }
 
     func note(_ value: DragSample) {
         guard value.translation != translation else { return }

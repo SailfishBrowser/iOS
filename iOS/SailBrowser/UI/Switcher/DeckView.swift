@@ -182,9 +182,9 @@ struct DeckView: View {
         return CardLayout.frozenOrder(frozenOrder, current: tabs.map(\.id)).map { byID[$0]! }
     }
 
-    // The built cards, and the archived cards still flying off. Read from inputs that change once per gesture (the
-    // span, the pair's and the flick's ids), never from the per-frame structs, so a frame re-evaluates the cards
-    // and not the deck.
+    // The built cards, and the archived cards still flying off. Read from inputs that change as the deck crosses a
+    // card or once per gesture (the span, the pair's and the flick's ids), never from the per-frame structs, so a
+    // frame re-evaluates the cards and not the deck.
     private func drawn(_ tabs: [Tab], activeIndex: Int) -> (built: [Int], flying: [Ghost]) {
         let built = Self.built(
             ids: tabs.map(\.id), activeIndex: activeIndex, span: driver.span, pinned: driver.pagedIDs + driver.flickIDs)

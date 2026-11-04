@@ -389,7 +389,7 @@ struct DeckView: View {
             driver.move(to: CardLayout.stretched(position, last: CGFloat(tabs.count - 1)))
         case .vertical:
             if let index = current.gesture.cardIndex {
-                let lift = layout.lift(for: translation.height, from: current.liftBase)
+                let lift = layout.lift(for: current.gesture.lifted(value.translation.height), from: current.liftBase)
                 driver.setLift(tabs[index].id, lift)
                 if current.gesture.archive.update(-lift) == .armed {
                     env.haptics.fire(.cardArchiveArm)

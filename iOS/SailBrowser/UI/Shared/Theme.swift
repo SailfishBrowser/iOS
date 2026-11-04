@@ -822,7 +822,7 @@ enum Theme {
         nonisolated static let barHideDistance: CGFloat = 24
         nonisolated static let barShowDistance: CGFloat = 12
         // The deck builds this many cards behind the span of a motion and this many ahead of it.
-        nonisolated static let deckBuiltBehind: CGFloat = 4
+        nonisolated static let deckBuiltBehind: CGFloat = 5
         nonisolated static let deckBuiltAhead: CGFloat = 2
     }
 

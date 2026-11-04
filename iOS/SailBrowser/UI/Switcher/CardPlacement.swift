@@ -42,7 +42,6 @@ extension View {
 }
 
 struct CardPlacement<Header: View>: ViewModifier {
-    @Environment(\.screenInsets) private var screenInsets
     let progress: CGFloat
     let olderProgress: CGFloat
     // The cards a swipe on the bar or the tab stack's flick moves, while the deck is closed.
@@ -63,6 +62,9 @@ struct CardPlacement<Header: View>: ViewModifier {
     let cover: CardCover
     let tabID: UUID
     let isPrivate: Bool
+
+    let transform: CardTransform
+    let geometry: CardGeometry
 
     init(
         progress: CGFloat, olderProgress: CGFloat, pair: DeckDriver.PagePair?, flick: DeckDriver.Flick?,
@@ -90,9 +92,19 @@ struct CardPlacement<Header: View>: ViewModifier {
         self.cover = cover
         self.tabID = tabID
         self.isPrivate = isPrivate
+        let t = Self.transform(
+            flick: flick, pair: pair, layout: layout, tabID: tabID, slot: slot, index: index, activeIndex: activeIndex,
+            position: position, progress: progress, olderProgress: olderProgress)
+        transform = t
+        geometry = CardGeometry(
+            scale: t.scale, offset: CGSize(width: t.offset.width, height: t.offset.height + lift), corner: t.corner,
+            opacity: t.opacity, clipHeight: t.clipHeight, clipTop: t.clipTop)
     }
 
-    var transform: CardTransform {
+    private static func transform(
+        flick: DeckDriver.Flick?, pair: DeckDriver.PagePair?, layout: CardLayout, tabID: UUID, slot: CGFloat, index: Int,
+        activeIndex: Int, position: CGFloat, progress: CGFloat, olderProgress: CGFloat
+    ) -> CardTransform {
         if let flick {
             if tabID == flick.from {
                 return layout.flickLive(arm: flick.arm, drop: flick.drop)
@@ -105,7 +117,7 @@ struct CardPlacement<Header: View>: ViewModifier {
             return t
         }
         if let pair {
-            return pairTransform(pair)
+            return pairTransform(pair, layout: layout, tabID: tabID, position: position)
         }
         return layout.transform(
             slot: slot, isActive: index == activeIndex, activeIndex: activeIndex, position: position,
@@ -115,7 +127,9 @@ struct CardPlacement<Header: View>: ViewModifier {
     // A card's place is its side of the page the swipe started on. The older card is out of the tab stack as far as it has
     // emerged; the page left dives into it on a newer-tab landing; the newer card shows once the pair arms or it is
     // mostly in. Every other card is hidden.
-    private func pairTransform(_ pair: DeckDriver.PagePair) -> CardTransform {
+    private static func pairTransform(
+        _ pair: DeckDriver.PagePair, layout: CardLayout, tabID: UUID, position: CGFloat
+    ) -> CardTransform {
         let side: CGFloat? =
             tabID == pair.originID ? 0 : tabID == pair.older ? -1 : tabID == pair.newer ? 1 : nil
         let offset = (side ?? 0) - (position - CGFloat(pair.origin))
@@ -125,13 +139,6 @@ struct CardPlacement<Header: View>: ViewModifier {
             t.opacity = 0
         }
         return t
-    }
-
-    var geometry: CardGeometry {
-        let t = transform
-        return CardGeometry(
-            scale: t.scale, offset: CGSize(width: t.offset.width, height: t.offset.height + lift), corner: t.corner,
-            opacity: t.opacity, clipHeight: t.clipHeight, clipTop: t.clipTop)
     }
 
     var contentGeometry: CardGeometry {
@@ -152,9 +159,57 @@ struct CardPlacement<Header: View>: ViewModifier {
         index == activeIndex || pair != nil ? progress : 1
     }
 
+    func body(content: Content) -> some View {
+        let t = transform
+        let g = geometry
+        let isActive = index == activeIndex
+        let screen = layout.screen
+        let room = layout.header(slot: slot, position: position, isLast: isLast)
+        let covered = showsCover
+        #if DEBUG
+        if isActive {
+            DebugProfiler.markUpdate(progress: progress)
+        }
+        #endif
+        return CardFace(
+            content: content, header: header, isActive: isActive, screen: screen, inner: contentGeometry, clip: g.clip,
+            dim: t.dim, showsCover: covered, coverImage: covered ? coverImage : nil, coverFill: covered ? coverFill : nil,
+            coverOpacity: covered ? coverOpacity : 0, isPrivate: isPrivate, privateCoverOpacity: privateCoverOpacity,
+            inverse: 1 / layout.restScale, headerWidth: room.width, headerOpacity: t.headerOpacity * room.opacity,
+            titleOpacity: t.titleOpacity
+        )
+        .rotationEffect(
+            isActive ? .zero : t.rotation, anchor: UnitPoint(x: 0.5, y: g.clipHeight / g.scale / 2 / screen.height))
+        .placed(isActive ? CardGeometry.identity(height: screen.height) : g)
+        .zIndex(t.zIndex)
+    }
+}
+
+// What a card draws in its own space. Its inputs hold still while a card only slides, so a frame that moves the card
+// leaves this body, its covers and its header's text alone.
+private struct CardFace<Content: View, Header: View>: View {
+    @Environment(\.screenInsets) private var screenInsets
+    let content: Content
+    let header: Header
+    let isActive: Bool
+    let screen: CGSize
+    let inner: CardGeometry
+    let clip: CardClip
+    let dim: CGFloat
+    let showsCover: Bool
+    let coverImage: UIImage?
+    let coverFill: Color?
+    let coverOpacity: CGFloat
+    let isPrivate: Bool
+    let privateCoverOpacity: CGFloat
+    let inverse: CGFloat
+    let headerWidth: CGFloat
+    let headerOpacity: CGFloat
+    let titleOpacity: CGFloat
+
     // What lies over the dimmed content inside the card's clip: the snapshot or fill cover, the private band under
     // it and the private cover.
-    var covers: some View {
+    private var covers: some View {
         ZStack {
             if showsCover {
                 Group {
@@ -181,25 +236,11 @@ struct CardPlacement<Header: View>: ViewModifier {
         }
     }
 
-    func body(content: Content) -> some View {
-        let t = transform
-        let g = geometry
-        let isActive = index == activeIndex
-        let screen = layout.screen
+    var body: some View {
         let unplaced = CardGeometry.identity(height: screen.height)
-        let inner = contentGeometry
-        let outer = isActive ? unplaced : g
-        let clip = g.clip
-        let inverse = 1 / layout.restScale
-        let room = layout.header(slot: slot, position: position, isLast: isLast)
-        #if DEBUG
-        if isActive {
-            DebugProfiler.markUpdate(progress: progress)
-        }
-        #endif
-        return ZStack {
+        ZStack {
             content
-                .overlay(clip.fill(Color.black.opacity(t.dim)).placed(inner).allowsHitTesting(false))
+                .overlay(clip.fill(Color.black.opacity(dim)).placed(inner).allowsHitTesting(false))
                 .clipShape(isActive ? unplaced.clip : clip)
             covers
                 .frame(width: screen.width, height: screen.height)
@@ -210,19 +251,15 @@ struct CardPlacement<Header: View>: ViewModifier {
                 .frame(width: screen.width, height: screen.height)
                 .overlay(alignment: .topLeading) {
                     header
-                        .environment(\.cardTitleOpacity, t.titleOpacity)
-                        .frame(width: room.width, height: Theme.Metrics.cardHeaderHeight, alignment: .leading)
+                        .environment(\.cardTitleOpacity, titleOpacity)
+                        .frame(width: headerWidth, height: Theme.Metrics.cardHeaderHeight, alignment: .leading)
                         .scaleEffect(inverse, anchor: .bottomLeading)
                         .offset(y: -(Theme.Metrics.cardHeaderHeight + Theme.Metrics.cardHeaderGap * inverse))
-                        .opacity(t.headerOpacity * room.opacity)
+                        .opacity(headerOpacity)
                 }
                 .placed(inner)
                 .allowsHitTesting(false)
         }
         .frame(width: screen.width, height: screen.height)
-        .rotationEffect(
-            isActive ? .zero : t.rotation, anchor: UnitPoint(x: 0.5, y: g.clipHeight / g.scale / 2 / screen.height))
-        .placed(outer)
-        .zIndex(t.zIndex)
     }
 }

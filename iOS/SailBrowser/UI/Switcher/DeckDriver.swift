@@ -53,12 +53,12 @@ import SwiftUI
     private(set) var isPaging = false
     private(set) var pair: PagePair?
     private(set) var flick: Flick?
-    // What the deck builds and the stack draws, changing once per gesture rather than per frame: the pair's cards
-    // (origin, older, newer), the flick's (from, to), and the stack's front-slot card while it is out of the stack.
+    // What the deck builds and the stack draws: the cards around the position, changing as it crosses a card rather
+    // than per frame, the pair's cards (origin, older, newer), the flick's (from, to), and the stack's front-slot card
+    // while it is out of the stack.
     private(set) var pagedIDs: [UUID] = []
     private(set) var flickIDs: [UUID] = []
     private(set) var outOfStack: UUID?
-    @ObservationIgnored private(set) var previous: CGFloat = 0
     @ObservationIgnored private(set) var motion: DeckMotion?
     @ObservationIgnored private var baseShift: [UUID: CGFloat] = [:]
     @ObservationIgnored private var departure: (() -> Void)?
@@ -162,10 +162,10 @@ import SwiftUI
         finishDeparture()
         motion = nil
         baseShift = [:]
-        previous = position
+        let from = position
         set(\.position, target)
         set(\.shift, [:])
-        updateSpan(to: target)
+        updateSpan(from: from, to: target)
         trackPage()
     }
 
@@ -173,10 +173,9 @@ import SwiftUI
         finishDeparture()
         motion = nil
         baseShift = [:]
-        previous = target
         set(\.position, target)
         set(\.shift, newShift)
-        updateSpan(to: target)
+        updateSpan(from: target, to: target)
         trackPage()
     }
 
@@ -348,8 +347,7 @@ import SwiftUI
             departure = departing.archive
             set(\.departing[departing.card], next.from)
         }
-        previous = next.from
-        updateSpan(to: next.to)
+        updateSpan(from: next.from, to: next.from)
         startClock(at: starting(start))
     }
 
@@ -519,6 +517,7 @@ import SwiftUI
             let presented = current.presented(at: time)
             set(\.position, presented.position)
             set(\.shift, presented.shift.merging(baseShift, uniquingKeysWith: +))
+            updateSpan(from: presented.position, to: presented.position)
             trackPage()
             if current.isSettled(at: time) {
                 motion = nil
@@ -656,8 +655,8 @@ import SwiftUI
         reportMotion()
     }
 
-    private func updateSpan(to target: CGFloat) {
-        set(\.span, CardLayout.span(from: previous, to: target))
+    private func updateSpan(from start: CGFloat, to target: CGFloat) {
+        set(\.span, CardLayout.span(from: start, to: target))
     }
 
     // The stack's front-slot card is out while the flick's card is grown or landing, or the swipe's older card has

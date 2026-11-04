@@ -297,7 +297,8 @@ nonisolated struct CardLayout: Sendable {
     // A card's header sits on its drawn left edge and only the strip up to the next card's left edge shows, so the header
     // ends a header gap short of the next card's header and truncates there. It fades out as that strip narrows from
     // two favicons wide to one, so a card tucked into the stack shows no header instead of a sliver of favicon under
-    // its neighbour's. The width is in the header's own points, before the card's scale.
+    // its neighbour's. The width is in the header's own points, before the card's scale, in steps about a glyph wide,
+    // so a sliding card re-truncates its title only when the title could change.
     func header(slot: CGFloat, position: CGFloat, isLast: Bool) -> (width: CGFloat, opacity: CGFloat) {
         func left(_ p: CGFloat) -> CGFloat {
             let card = rest(p)
@@ -307,7 +308,11 @@ nonisolated struct CardLayout: Sendable {
         let depth = rest(p).depth
         let width = cardSize.width * depth
         let room = isLast ? width : min(left(p + 1) - left(p) - Theme.Metrics.cardHeaderGap, width)
-        return (max(room, 0) / depth, min(max(room / (Theme.Metrics.cardHeaderFavicon * depth) - 1, 0), 1))
+        let step = Theme.Metrics.cardHeaderWidthStep
+        return (
+            (max(room, 0) / depth / step).rounded() * step,
+            min(max(room / (Theme.Metrics.cardHeaderFavicon * depth) - 1, 0), 1)
+        )
     }
 
     static func span(from start: CGFloat, to end: CGFloat) -> ClosedRange<Int> {

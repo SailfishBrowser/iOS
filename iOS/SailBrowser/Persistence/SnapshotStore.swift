@@ -22,6 +22,7 @@ final class SnapshotStore {
     // every card it wants.
     private var retained: [Tab.ID] = []
     private var recent: [Tab.ID] = []
+    private var decoding: Set<Tab.ID> = []
 
     init(directories: AppDirectories) {
         folder = directories.caches.appending(path: "snapshots")
@@ -72,13 +73,15 @@ final class SnapshotStore {
     }
 
     func preload(_ ids: [Tab.ID]) {
-        for id in ids where thumbnail(for: id).image == nil {
+        for id in ids where thumbnail(for: id).image == nil && decoding.insert(id).inserted {
             let thumbnail = thumbnail(for: id)
             let url = fileURL(id)
             // A landing for a tab removed meanwhile touches nothing: its id would stand in the line with no
             // thumbnail for the budget to trim.
             Task { [weak self] in
-                guard let decoded = await Self.decode(url), thumbnail.image == nil else { return }
+                let decoded = await Self.decode(url)
+                self?.decoding.remove(id)
+                guard let decoded, thumbnail.image == nil else { return }
                 thumbnail.image = decoded.image
                 thumbnail.small = decoded.small
                 guard let self, thumbnails[id] === thumbnail else { return }
@@ -99,10 +102,12 @@ final class SnapshotStore {
     }
 
     func trim(keeping ids: Set<Tab.ID>) {
+        let dropped = thumbnails.filter { !ids.contains($0.key) }.compactMap(\.value.image)
         for (id, thumbnail) in thumbnails where !ids.contains(id) {
             thumbnail.image = nil
         }
         recent.removeAll { !ids.contains($0) }
+        Task.detached { withExtendedLifetime(dropped) {} }
     }
 
     func flush() async {

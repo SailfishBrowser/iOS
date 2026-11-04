@@ -182,9 +182,9 @@ struct DeckView: View {
         return CardLayout.frozenOrder(frozenOrder, current: tabs.map(\.id)).map { byID[$0]! }
     }
 
-    // The built cards, and the archived cards still flying off. Read from inputs that change once per gesture (the
-    // span, the pair's and the flick's ids), never from the per-frame structs, so a frame re-evaluates the cards
-    // and not the deck.
+    // The built cards, and the archived cards still flying off. Read from inputs that change as the deck crosses a
+    // card or once per gesture (the span, the pair's and the flick's ids), never from the per-frame structs, so a
+    // frame re-evaluates the cards and not the deck.
     private func drawn(_ tabs: [Tab], activeIndex: Int) -> (built: [Int], flying: [Ghost]) {
         let built = Self.built(
             ids: tabs.map(\.id), activeIndex: activeIndex, span: driver.span, pinned: driver.pagedIDs + driver.flickIDs)
@@ -338,6 +338,7 @@ struct DeckView: View {
     // A grab inside a throw's gap close is taken: the thrown card's tab is archived first, then the grab catches the
     // closing deck where its last frame drew it.
     private func began(_ value: DragSample, layout: CardLayout) {
+        lastMove.holdRate()
         driver.finishDeparture()
         let tabs = orderedTabs
         guard let activeIndex = tabs.firstIndex(where: { $0.id == env.browser.activeTabID }) else { return }
@@ -360,6 +361,7 @@ struct DeckView: View {
 
     private func cancelDrag(_ id: UUID, layout: CardLayout) {
         guard let current = drag, current.id == id else { return }
+        lastMove.releaseRate()
         drag = nil
         let tabs = orderedTabs
         if current.gesture.axis == .vertical, let index = current.gesture.cardIndex {
@@ -404,6 +406,7 @@ struct DeckView: View {
     }
 
     private func ended(_ value: DragSample, layout: CardLayout) {
+        lastMove.releaseRate()
         guard let current = drag else { return }
         let tabs = orderedTabs
         let activeIndex = current.activeIndex
@@ -431,7 +434,7 @@ struct DeckView: View {
                 lastMove.hasRested(at: value) ? 0 : CardLayout.boosted(value.velocity.width, caught: current.caught)
             let target = layout.releaseTarget(from: from, velocity: velocity, count: tabs.count)
             driver.run(layout.page(from: from, to: target, velocity: velocity, shift: driver.shift, start: .now))
-            trimSnapshots(tabs, keeping: CardLayout.span(from: from, to: target))
+            trimSnapshots(tabs, from: from, to: target)
         case .vertical:
             guard let index = gesture.cardIndex else {
                 settle(tabs, layout: layout)
@@ -482,9 +485,12 @@ struct DeckView: View {
         }
     }
 
-    // Every card the release draws keeps its picture: the span runs from the release to where it rests.
-    private func trimSnapshots(_ tabs: [Tab], keeping span: ClosedRange<Int>) {
-        var kept = Set(tabs[span.clamped(to: 0...(tabs.count - 1))].map(\.id))
+    // Every card the release draws keeps its picture, and the ones it has yet to reach decode ahead of it, nearest
+    // first: the span runs from the release to where it rests.
+    private func trimSnapshots(_ tabs: [Tab], from: CGFloat, to target: CGFloat) {
+        let span = CardLayout.span(from: from, to: target).clamped(to: 0...(tabs.count - 1))
+        let path = target < from ? tabs[span].reversed().map(\.id) : tabs[span].map(\.id)
+        var kept = Set(path)
         if let active = env.browser.activeTabID {
             kept.insert(active)
         }
@@ -492,6 +498,7 @@ struct DeckView: View {
             kept.insert(previous)
         }
         env.snapshots.trim(keeping: kept)
+        env.snapshots.preload(path)
     }
 }
 
@@ -500,6 +507,15 @@ struct DeckView: View {
 private final class LastMove {
     private var translation = CGSize.zero
     private var time = Date.distantPast
+    private var rate: FrameRateVote.Presence?
+
+    func holdRate() {
+        rate = FrameRateVote.Presence()
+    }
+
+    func releaseRate() {
+        rate = nil
+    }
 
     func note(_ value: DragSample) {
         guard value.translation != translation else { return }

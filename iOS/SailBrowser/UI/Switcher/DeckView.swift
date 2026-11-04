@@ -30,6 +30,7 @@ struct DeckView: View {
     @State private var drag: Drag?
     @State private var ghosts: [Ghost] = []
     @State private var lastMove = LastMove()
+    @State private var presence: FrameRateVote.Presence?
     #if DEBUG
     @State private var hooksOwner = UUID()
     #endif
@@ -49,6 +50,7 @@ struct DeckView: View {
                             deckGesture(layout: layout),
                             isEnabled: env.ui.deckTakesTouches)
                         .onChange(of: touching) { _, now in
+                            presence = now ? FrameRateVote.Presence() : nil
                             guard !now, let id = drag?.id else { return }
                             Task { cancelDrag(id, layout: layout) }
                         }

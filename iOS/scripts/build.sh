@@ -13,8 +13,8 @@ xcodebuild build -project SailBrowser.xcodeproj -scheme SailBrowser \
   -derivedDataPath .build/DerivedData \
   SWIFT_TREAT_WARNINGS_AS_ERRORS=YES 2>&1 | tee .build/build.log || status=$?
 
-if grep -E 'SailBrowser/[^:]+\.swift:[0-9]+:[0-9]+: (warning|error):' .build/build.log >&2; then
-  echo "build.sh: compiler diagnostics in SailBrowser/" >&2
+if grep -E 'SailBrowser(Drivers)?/[^:]+\.swift:[0-9]+:[0-9]+: (warning|error):' .build/build.log >&2; then
+  echo "build.sh: compiler diagnostics in SailBrowser/ or SailBrowserDrivers/" >&2
   exit 1
 fi
 exit "$status"

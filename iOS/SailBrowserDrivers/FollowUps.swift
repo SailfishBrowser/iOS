@@ -1,4 +1,3 @@
-#if DEBUG
 import UIKit
 
 // "Next action right after": each pair plays its lead-in steps, then its first step. On the frame after the first
@@ -130,4 +129,3 @@ enum FollowUps {
         InteractionProbe.milliseconds(duration / .seconds(1))
     }
 }
-#endif

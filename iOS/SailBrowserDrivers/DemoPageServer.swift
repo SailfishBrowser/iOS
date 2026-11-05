@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import Network
 
@@ -61,4 +60,3 @@ nonisolated final class DemoPageServer: Sendable {
         }
     }
 }
-#endif

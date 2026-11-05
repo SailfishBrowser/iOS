@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 
 // Translations are the finger's: down pulls the page past its top, up scrolls it down.
@@ -52,4 +51,3 @@ enum WebDrivers {
             presented: InteractionProbe.present(env.debugWatches[.webScroll], watching))
     }
 }
-#endif

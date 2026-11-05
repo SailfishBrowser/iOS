@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 
 enum MenuDrivers {
@@ -52,4 +51,3 @@ enum MenuDrivers {
             .run(into: InteractionProbe.present(env.debugSurfaces[.menuSheet], interaction))
     }
 }
-#endif

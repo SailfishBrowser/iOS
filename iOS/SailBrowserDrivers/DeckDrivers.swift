@@ -1,4 +1,3 @@
-#if DEBUG
 import UIKit
 
 enum DeckDrivers {
@@ -78,4 +77,3 @@ enum DeckDrivers {
             presented: InteractionProbe.present(env.debugWatches[.deck], interaction))
     }
 }
-#endif

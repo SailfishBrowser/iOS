@@ -1,4 +1,3 @@
-#if DEBUG
 import CoreGraphics
 import Foundation
 
@@ -44,4 +43,3 @@ enum BarDrivers {
         await DebugFinger(path: path, duration: duration, start: .zero).run(into: surface)
     }
 }
-#endif

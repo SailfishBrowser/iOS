@@ -1,4 +1,3 @@
-#if DEBUG
 import os
 import QuartzCore
 import SwiftUI
@@ -338,4 +337,3 @@ private final class DisplayFrames: NSObject {
         continuation?.resume(returning: link.targetTimestamp)
     }
 }
-#endif

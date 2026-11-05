@@ -362,11 +362,12 @@ nonisolated struct CardLayout: Sendable {
         return hits.max { $0.zIndex < $1.zIndex }?.index
     }
 
+    static let pageTimeConstant = Magnet.project(velocity: 1, rate: Theme.Motion.deckPageDecay)
+
     func releaseTarget(from position: CGFloat, velocity: CGFloat, count: Int) -> CGFloat {
-        let decay = Theme.Motion.deckPageDecay
-        let projected = (position - velocity * CGFloat(decay.timeConstant(velocity: velocity)) / stride).rounded()
+        let projected = (position - velocity * Self.pageTimeConstant / stride).rounded()
         let card =
-            !decay.flicks(velocity)
+            abs(velocity) < Theme.Gesture.deckFlickVelocity
             ? projected
             : velocity < 0 ? max(projected, position.rounded(.down) + 1) : min(projected, position.rounded(.up) - 1)
         return min(max(card, 0), CGFloat(count - 1))
@@ -376,10 +377,9 @@ nonisolated struct CardLayout: Sendable {
         from position: CGFloat, to target: CGFloat, velocity: CGFloat, shift: [UUID: CGFloat],
         start: ContinuousClock.Instant
     ) -> DeckMotion {
-        let decay = Theme.Motion.deckPageDecay
         let distance = target - position
         let toward = distance == 0 ? 0 : Double(-velocity / stride / distance)
-        let rate = decay.flicks(velocity) && toward > 0 ? toward : max(toward, 1 / decay.fast)
+        let rate = max(toward, Double(1 / Self.pageTimeConstant))
         return DeckMotion(
             from: position, to: target, shift: shift, velocity: rate, start: start,
             spring: Spring(mass: 1, stiffness: rate * rate, damping: 2 * rate), points: stride,
@@ -575,20 +575,6 @@ nonisolated struct DeckSnap: Equatable, Sendable {
 
     func position(at time: ContinuousClock.Instant) -> CGFloat {
         isSettled(at: time) ? to : raw(at: (time - start) / .seconds(1))
-    }
-}
-
-nonisolated struct DeckDecay: Sendable {
-    let fast: Double
-    let flick: Double
-    let flickVelocity: CGFloat
-
-    func flicks(_ velocity: CGFloat) -> Bool {
-        abs(velocity) >= flickVelocity
-    }
-
-    func timeConstant(velocity: CGFloat) -> Double {
-        flicks(velocity) ? flick : fast
     }
 }
 

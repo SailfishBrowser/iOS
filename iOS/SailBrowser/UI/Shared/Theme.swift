@@ -7,10 +7,7 @@ enum Theme {
         nonisolated static let deckZoom = MotionToken.spring(duration: 0.22, bounce: 0.025)
         nonisolated static let deckOlderZoom = MotionToken.spring(duration: 0.34, bounce: 0.1)
         nonisolated static let deckSnap = MotionToken.physical(mass: 1, stiffness: 320, damping: 32)
-        nonisolated static let deckPageDecay = DeckDecay(
-            fast: Double(Magnet.project(velocity: 1, rate: Gesture.decelerationFast)),
-            flick: Double(Magnet.project(velocity: 1, rate: Gesture.decelerationNormal)),
-            flickVelocity: Gesture.deckFlickVelocity)
+        nonisolated static let deckPageDecay: CGFloat = 0.9915
         nonisolated static let bar = MotionToken.spring(duration: 0.28, bounce: 0)
         nonisolated static let keyboardDuration: TimeInterval = 0.3833
         static let keyboardCurve = UIView.AnimationOptions(rawValue: 7 << 16)

@@ -16,12 +16,12 @@ final class PageFoldView: UIView {
     private let glow: Glow
     private let card: UIView
     // A plain layer flattens the paper into its own plane, so the card stays behind it: in one 3D context the render
-    // server would sort the card in front of every crease that turns away from the eye.
+    // server would sort the card in front of every edge that turns away from the eye.
     private let sheet = UIView()
     private let paper = Paper()
     private let top: UIView
     private let bottom: UIView
-    private let shades: [CAGradientLayer]
+    private let shades: [CALayer]
     // The display stays at the full rate from the pinch's begin until the fold is removed.
     private let presence = FrameRateVote.Presence()
     private let resized: () -> Void
@@ -49,12 +49,13 @@ final class PageFoldView: UIView {
         }
         top = halves[0]
         bottom = halves[1]
-        // The crease is the top half's lower edge and the bottom half's upper edge.
-        let crease = UIColor.black.withAlphaComponent(Theme.Fold.creaseShade).cgColor
-        let clear = UIColor.black.withAlphaComponent(0).cgColor
-        shades = [[clear, crease], [crease, clear]].map { colors in
-            let shade = CAGradientLayer()
-            shade.colors = colors
+        let tones = [
+            UIColor.white.withAlphaComponent(Theme.Fold.topLight),
+            UIColor.black.withAlphaComponent(Theme.Fold.bottomShade),
+        ]
+        shades = tones.map { tone in
+            let shade = CALayer()
+            shade.backgroundColor = tone.cgColor
             shade.frame = CGRect(origin: .zero, size: frames[0].size)
             shade.opacity = 0
             return shade

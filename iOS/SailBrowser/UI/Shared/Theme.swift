@@ -8,6 +8,8 @@ enum Theme {
         nonisolated static let deckOlderZoom = MotionToken.spring(duration: 0.34, bounce: 0.1)
         nonisolated static let deckSnap = MotionToken.physical(mass: 1, stiffness: 320, damping: 32)
         nonisolated static let deckPageDecay: CGFloat = 0.9915
+        // A flick projects this much farther than its coast would carry it.
+        nonisolated static let deckFlickReach: CGFloat = 1.1
         nonisolated static let bar = MotionToken.spring(duration: 0.28, bounce: 0)
         nonisolated static let keyboardDuration: TimeInterval = 0.3833
         static let keyboardCurve = UIView.AnimationOptions(rawValue: 7 << 16)

@@ -132,7 +132,7 @@ import WebKit
     // The lists an earlier run compiled are on before the first page loads; a first run or a new blocklist compiles
     // behind it, and the pages it loaded without them reload when they land.
     func finishLaunch() async {
-        snapshots.preload(activeAndNeighborIDs())
+        snapshots.preload(neighbourhoodIDs())
         await blocker.loadCachedLists()
         attachActiveController()
         pool.prewarm()
@@ -646,11 +646,12 @@ import WebKit
         activeController = controller
     }
 
-    // The pictures a swipe on the bar, a flick or a zoom-in can show next stay decoded, and the neighbours are decoded
-    // now if the budget had let them go.
+    // The pictures a swipe on the bar, a flick or a zoom-in can show next stay decoded, and are decoded now if the
+    // budget had let them go.
     private func retainActiveNeighbourhood() {
-        snapshots.retain(neighbourhoodIDs())
-        snapshots.preload(activeAndNeighborIDs())
+        let ids = neighbourhoodIDs()
+        snapshots.retain(ids)
+        snapshots.preload(ids)
     }
 
     // The active tab, its deck neighbours and the previous tab.

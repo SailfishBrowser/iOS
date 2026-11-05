@@ -152,7 +152,7 @@ struct TabStackThumbnails: View {
                     .rotationEffect(.degrees(Self.tilts[card.rank]))
                     .offset(Theme.Metrics.tabStackThumbnailOffsets[card.rank])
                     .onAppear {
-                        env.snapshots.preload([card.id])
+                        env.snapshots.preloadSmall([card.id])
                     }
             }
         }

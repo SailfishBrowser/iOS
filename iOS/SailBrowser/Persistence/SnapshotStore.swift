@@ -23,6 +23,7 @@ final class SnapshotStore {
     private var retained: [Tab.ID] = []
     private var recent: [Tab.ID] = []
     private var decoding: Set<Tab.ID> = []
+    private var decodingSmall: Set<Tab.ID> = []
 
     init(directories: AppDirectories) {
         folder = directories.caches.appending(path: "snapshots")
@@ -90,6 +91,20 @@ final class SnapshotStore {
         }
     }
 
+    func preloadSmall(_ ids: [Tab.ID]) {
+        for id in ids {
+            let thumbnail = thumbnail(for: id)
+            guard thumbnail.image == nil, thumbnail.small == nil, decodingSmall.insert(id).inserted else { continue }
+            let url = fileURL(id)
+            Task { [weak self] in
+                let small = await Self.decodeSmall(url)
+                self?.decodingSmall.remove(id)
+                guard thumbnail.small == nil else { return }
+                thumbnail.small = small
+            }
+        }
+    }
+
     // Ids entering the set leave the line; ids leaving it that still have a picture join the back in the order they
     // were named, so they drain one at a time. Nothing is decoded or trimmed here.
     func retain(_ ids: [Tab.ID]) {
@@ -152,6 +167,10 @@ final class SnapshotStore {
             let image = await file.byPreparingForDisplay()
         else { return nil }
         return (image, await file.byPreparingThumbnail(ofSize: smallSize))
+    }
+
+    @concurrent private static func decodeSmall(_ url: URL) async -> UIImage? {
+        await UIImage(contentsOfFile: url.path(percentEncoded: false))?.byPreparingThumbnail(ofSize: smallSize)
     }
 
     @concurrent private static func delete(_ url: URL) async throws {

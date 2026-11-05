@@ -365,9 +365,11 @@ nonisolated struct CardLayout: Sendable {
     static let pageTimeConstant = Magnet.project(velocity: 1, rate: Theme.Motion.deckPageDecay)
 
     func releaseTarget(from position: CGFloat, velocity: CGFloat, count: Int) -> CGFloat {
-        let projected = (position - velocity * Self.pageTimeConstant / stride).rounded()
+        let flicks = abs(velocity) >= Theme.Gesture.deckFlickVelocity
+        let reach = flicks ? Theme.Motion.deckFlickReach : 1
+        let projected = (position - velocity * reach * Self.pageTimeConstant / stride).rounded()
         let card =
-            abs(velocity) < Theme.Gesture.deckFlickVelocity
+            !flicks
             ? projected
             : velocity < 0 ? max(projected, position.rounded(.down) + 1) : min(projected, position.rounded(.up) - 1)
         return min(max(card, 0), CGFloat(count - 1))

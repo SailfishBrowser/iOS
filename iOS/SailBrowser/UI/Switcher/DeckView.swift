@@ -386,10 +386,9 @@ struct DeckView: View {
         case nil:
             break
         }
-        let translation = current.gesture.effective(value.translation)
         switch current.gesture.axis {
         case .horizontal:
-            let position = current.gesture.start - translation.width / layout.stride
+            let position = current.gesture.start - value.translation.width / layout.stride
             driver.move(to: CardLayout.stretched(position, last: CGFloat(tabs.count - 1)))
         case .vertical:
             if let index = current.gesture.cardIndex {
@@ -430,8 +429,7 @@ struct DeckView: View {
         switch gesture.axis {
         case .horizontal:
             let last = CGFloat(tabs.count - 1)
-            let from = CardLayout.stretched(
-                gesture.start - gesture.effective(value.translation).width / layout.stride, last: last)
+            let from = CardLayout.stretched(gesture.start - value.translation.width / layout.stride, last: last)
             let velocity =
                 lastMove.hasRested(at: value) ? 0 : CardLayout.boosted(value.velocity.width, caught: current.caught)
             let target = layout.releaseTarget(from: from, velocity: velocity, count: tabs.count)

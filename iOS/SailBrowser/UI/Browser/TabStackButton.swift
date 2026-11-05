@@ -151,6 +151,9 @@ struct TabStackThumbnails: View {
                 StackThumbnail(thumbnail: content.thumbnail, fill: content.fill, foreground: foreground)
                     .rotationEffect(.degrees(Self.tilts[card.rank]))
                     .offset(Theme.Metrics.tabStackThumbnailOffsets[card.rank])
+                    .onAppear {
+                        env.snapshots.preload([card.id])
+                    }
             }
         }
     }

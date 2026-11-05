@@ -668,6 +668,7 @@ enum Theme {
         // The pill's, tiles' and rows' fill over the sheet, and the stepper's over its row.
         static let menuFill: CGFloat = 0.1
         static let macTabsTileFill: CGFloat = 0.1
+        static let tabStackPlainFill: CGFloat = macTabsTileFill
         static let menuStepperFill: CGFloat = 0.06
         static let navPillStroke: CGFloat = 0.12
         static let menuPrimary: CGFloat = 0.88

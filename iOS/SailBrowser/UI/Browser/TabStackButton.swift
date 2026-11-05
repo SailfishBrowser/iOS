@@ -144,8 +144,14 @@ struct TabStackThumbnails: View {
     // Reads the driver's out card, written once per gesture, not the per-frame flights.
     var body: some View {
         let byID = Dictionary(uniqueKeysWithValues: env.browser.tabs.map { ($0.id, $0) })
-        let fixed = Self.fixed(recent: Self.recent(in: env), outOfStack: env.ui.deck.outOfStack)
+        let recent = Self.recent(in: env)
+        let fixed = Self.fixed(recent: recent, outOfStack: env.ui.deck.outOfStack)
         ZStack {
+            if recent.isEmpty {
+                StackThumbnail(
+                    thumbnail: nil, fill: foreground.opacity(Theme.Opacity.tabStackPlainFill), foreground: foreground)
+                    .rotationEffect(.degrees(Self.tilts[0]))
+            }
             ForEach(fixed.reversed(), id: \.id) { card in
                 let content = StackThumbnail.content(of: byID[card.id]!, snapshots: env.snapshots, inSwipe: false)
                 StackThumbnail(thumbnail: content.thumbnail, fill: content.fill, foreground: foreground)

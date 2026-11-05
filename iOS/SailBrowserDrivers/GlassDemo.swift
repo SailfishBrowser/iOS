@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import os
 
@@ -86,4 +85,3 @@ import os
         logger.notice("GLASS DONE")
     }
 }
-#endif

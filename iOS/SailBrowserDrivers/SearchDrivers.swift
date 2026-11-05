@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 
 @MainActor enum SearchDrivers {
@@ -72,4 +71,3 @@ import Foundation
         _ = await InteractionProbe.watch(interaction, in: env, from: baseline, presented: sheetTop)
     }
 }
-#endif

@@ -1,4 +1,3 @@
-#if DEBUG
 import Foundation
 import os
 
@@ -84,4 +83,3 @@ enum PolishDemo {
         env.haptics.records[recorded...].forEach(InteractionProbe.report)
     }
 }
-#endif

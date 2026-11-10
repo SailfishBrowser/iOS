@@ -23,11 +23,12 @@ import SwiftUI
         self.layout = layout
     }
 
-    // Only in the browser, never under a sheet, during a zoom or while the stack's finger has the flick's card. A
-    // flick landing, returning or held by the catcher is landed first (began), so the swipe is taken through it.
+    // Only in the browser, never under a sheet, during a zoom, while the stack's finger has the flick's card or during
+    // an edge swipe. A flick landing, returning or held by the catcher is landed first (began), so the swipe is taken
+    // through it.
     var takesSwipe: Bool {
         env.ui.overlay == .none && env.ui.deckProgress == 0 && !driver.isZooming && env.flick?.isDragging != true
-            && env.browser.activeTab != nil
+            && env.browser.activeTab != nil && !env.edgeSwipe.isMoving
     }
 
     var isSwiping: Bool {

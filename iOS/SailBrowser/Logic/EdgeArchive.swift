@@ -28,6 +28,21 @@ nonisolated enum EdgeArchive {
         offsetX <= -leftInset + 0.5
     }
 
+    // The forward swipe's touch starts anywhere in the right part of the page, the back swipe's zone mirrored.
+    static func startsInForwardZone(x: CGFloat, width: CGFloat) -> Bool {
+        x <= width && x >= width * (1 - Theme.Gesture.edgeArchiveZoneFraction)
+    }
+
+    // A page scrolled sideways short of its right edge scrolls there first; only one at its right edge swipes forward.
+    static func pageAtRightEdge(offsetX: CGFloat, contentWidth: CGFloat, width: CGFloat, rightInset: CGFloat) -> Bool {
+        offsetX >= contentWidth - width + rightInset - 0.5
+    }
+
+    // The forward pan begins once it has moved left within the lock angle, the back swipe's begin mirrored.
+    static func beginsForward(translation: CGSize) -> Bool {
+        begins(translation: CGSize(width: -translation.width, height: translation.height))
+    }
+
     // The pan begins once it has moved right within the bar swipe's lock angle of horizontal; a vertical start is
     // the page's scroll.
     static func begins(translation: CGSize) -> Bool {
@@ -140,5 +155,42 @@ nonisolated struct EdgeMagnet: Equatable, Sendable {
         let omega = 2 * .pi / Theme.Gesture.edgeArchiveSnapResponse
         let t = max(0, (now - since) / .seconds(1))
         return target + (from - target) * CGFloat((1 + omega * t) * exp(-omega * t))
+    }
+}
+
+// The tabs the back swipe archived, newest last, for the forward swipe to bring back: each with the tab the swipe
+// landed on. Only the newest one is offered, and only while its landing tab is the one shown, so a tab shown any other
+// way drops the lot, as a browser's forward history goes when it goes somewhere new. A tab restored or deleted from the
+// Archive in the meantime is skipped.
+nonisolated struct EdgeForwardHistory: Equatable, Sendable {
+    struct Entry: Equatable, Sendable {
+        // The archived tab, whose Archive entry keeps its id.
+        let archived: Tab.ID
+        let landing: Tab.ID
+    }
+
+    private(set) var entries: [Entry] = []
+
+    mutating func archived(_ id: Tab.ID, landing: Tab.ID) {
+        entries.append(Entry(archived: id, landing: landing))
+    }
+
+    // The entry the forward swipe offers on the shown tab, dropping what no longer applies.
+    mutating func next(shown: Tab.ID?, inArchive: (Tab.ID) -> Bool) -> Entry? {
+        entries.removeAll { !inArchive($0.archived) }
+        guard let last = entries.last, last.landing == shown else {
+            entries = []
+            return nil
+        }
+        return last
+    }
+
+    // The newest entry came back as a new tab: the entry before it, which landed on the tab that was archived, now
+    // lands on the new one.
+    mutating func restored(_ entry: Entry, as id: Tab.ID) {
+        entries.removeAll { $0 == entry }
+        for i in entries.indices where entries[i].landing == entry.archived {
+            entries[i] = Entry(archived: entries[i].archived, landing: id)
+        }
     }
 }

@@ -37,6 +37,10 @@ import WebKit
     @ObservationIgnored var flick: TabStackFlick?
     // The swipe in from a page's left edge that archives a tab with nothing to go back to.
     @ObservationIgnored lazy var edgeSwipe = EdgeArchiveSwipe(env: self)
+    // The tabs the edge swipe archived, for the forward swipe to bring back, with each one's last picture and tint so
+    // the picture can slide in and cover the page until it paints. Held in memory only.
+    @ObservationIgnored private var edgeForward = EdgeForwardHistory()
+    @ObservationIgnored private var forwardPictures: [Tab.ID: (image: UIImage?, tint: CodableColor?)] = [:]
     // Asks over the page whether its host may use these; nil when the prompt is dismissed without an answer.
     @ObservationIgnored lazy var askMedia: (WKWebView, String, [MediaKind]) async -> Bool? = {
         [unowned self] webView, host, kinds in
@@ -345,16 +349,58 @@ import WebKit
     // it comes to the front in place. With none left the empty deck shows at once, as the switcher shows it after its
     // last card is thrown; the page has already gone, so nothing zooms.
     func edgeArchived(_ id: Tab.ID) {
-        guard browser.tabs.contains(where: { $0.id == id }) else { return }
+        guard let tab = browser.tabs.first(where: { $0.id == id }) else { return }
+        // The picture goes with the tab's snapshot; the forward swipe keeps it to bring the tab back.
+        let picture = snapshots.thumbnail(for: id).image
         var transaction = Transaction()
         transaction.disablesAnimations = true
         withTransaction(transaction) {
             browser.archiveShowingPrevious(id)
             attachActiveController()
         }
+        if !tab.isPrivate, let landing = browser.activeTabID {
+            edgeForward.archived(id, landing: landing)
+            forwardPictures[id] = (picture, tab.tint)
+        }
         if browser.activeTab == nil {
             haptics.fire(.deckEmptied)
             ui.setDeck(1, animated: false)
+        }
+    }
+
+    // The tab the forward swipe brings back on the shown tab: the last one the edge swipe archived from here, while it
+    // is still in the Archive. Anything stale is dropped, its picture with it.
+    func forwardEntry() -> EdgeForwardHistory.Entry? {
+        let inArchive = Set(browser.archived.map(\.id))
+        let entry = edgeForward.next(shown: browser.activeTabID, inArchive: inArchive.contains)
+        let kept = Set(edgeForward.entries.map(\.archived))
+        forwardPictures = forwardPictures.filter { kept.contains($0.key) }
+        return entry
+    }
+
+    func forwardPicture(for id: Tab.ID) -> (image: UIImage?, tint: CodableColor?) {
+        forwardPictures[id] ?? (nil, nil)
+    }
+
+    // The forward swipe's landing: the archived tab comes back from the Archive as a new tab in place, with its picture
+    // as its snapshot so the card covers the page with it until the page paints, as a tab that slid in should.
+    func edgeForwarded(_ entry: EdgeForwardHistory.Entry) {
+        guard browser.activeTabID == entry.landing, browser.archived.contains(where: { $0.id == entry.archived })
+        else { return }
+        captureOutgoingSnapshot()
+        let picture = forwardPictures.removeValue(forKey: entry.archived)
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            guard let tab = browser.restore(entry.archived) else { return }
+            if let image = picture?.image {
+                snapshots.store(image, for: tab.id)
+            }
+            if let tint = picture?.tint {
+                browser.setTint(tint, for: tab.id)
+            }
+            edgeForward.restored(entry, as: tab.id)
+            attachActiveController()
         }
     }
 
@@ -718,6 +764,12 @@ import WebKit
         controller.onSummaryClosed = { [weak self] in self?.ui.close() }
         controller.takesEdgeSwipe = { [weak self, unowned controller] in self?.edgeSwipe.takes(controller) == true }
         controller.onEdgeSwipe = { [weak self, unowned controller] pan in self?.edgeSwipe.swiped(pan, on: controller) }
+        controller.takesForwardSwipe = { [weak self, unowned controller] in
+            self?.edgeSwipe.takesForward(controller) == true
+        }
+        controller.onForwardSwipe = { [weak self, unowned controller] pan in
+            self?.edgeSwipe.swipedForward(pan, on: controller)
+        }
         controller.onOpenWindow = { [weak self] webView, url in
             guard let self else { return }
             flick?.finish()
@@ -830,6 +882,8 @@ import WebKit
                 controller.onSummaryClosed = nil
                 controller.takesEdgeSwipe = { false }
                 controller.onEdgeSwipe = nil
+                controller.takesForwardSwipe = { false }
+                controller.onForwardSwipe = nil
             }
             settledSnapshotTasks.removeValue(forKey: id)?.cancel()
             pool.discard(id)

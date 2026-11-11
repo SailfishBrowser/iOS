@@ -116,4 +116,50 @@ struct EdgeArchiveTests {
         #expect(EdgeArchive.underlayDim(progress: 0) == Theme.Opacity.edgeArchiveDim)
         #expect(EdgeArchive.underlayDim(progress: 1) == 0)
     }
+
+    @Test func theForwardSwipeIsTheBackSwipeMirrored() {
+        let zone = width * (1 - Theme.Gesture.edgeArchiveZoneFraction)
+        #expect(EdgeArchive.startsInForwardZone(x: width, width: width))
+        #expect(EdgeArchive.startsInForwardZone(x: zone, width: width))
+        #expect(!EdgeArchive.startsInForwardZone(x: zone - 1, width: width))
+        #expect(EdgeArchive.beginsForward(translation: CGSize(width: -12, height: 6)))
+        #expect(!EdgeArchive.beginsForward(translation: CGSize(width: 12, height: 0)))
+        #expect(!EdgeArchive.beginsForward(translation: CGSize(width: -4, height: 12)))
+        #expect(EdgeArchive.pageAtRightEdge(offsetX: 0, contentWidth: width, width: width, rightInset: 0))
+        #expect(EdgeArchive.pageAtRightEdge(offsetX: 200, contentWidth: 600, width: width, rightInset: 0))
+        #expect(!EdgeArchive.pageAtRightEdge(offsetX: 100, contentWidth: 600, width: width, rightInset: 0))
+    }
+
+    // Forward brings back the last tab archived from the tab shown, newest first, and only while that tab is shown.
+    @Test func forwardOffersTheLastTabArchivedFromTheShownTab() {
+        let (a, b, c) = (UUID(), UUID(), UUID())
+        var history = EdgeForwardHistory()
+        history.archived(a, landing: b)
+        history.archived(b, landing: c)
+        let inArchive: (Tab.ID) -> Bool = { _ in true }
+        #expect(history.next(shown: c, inArchive: inArchive) == .init(archived: b, landing: c))
+
+        // b comes back as a new tab; the entry that landed on b now lands on it.
+        let b2 = UUID()
+        history.restored(.init(archived: b, landing: c), as: b2)
+        #expect(history.next(shown: b2, inArchive: inArchive) == .init(archived: a, landing: b2))
+    }
+
+    @Test func showingAnotherTabDropsTheForwardHistory() {
+        let (a, b, other) = (UUID(), UUID(), UUID())
+        var history = EdgeForwardHistory()
+        history.archived(a, landing: b)
+        #expect(history.next(shown: other, inArchive: { _ in true }) == nil)
+        #expect(history.entries.isEmpty)
+        #expect(history.next(shown: b, inArchive: { _ in true }) == nil)
+    }
+
+    @Test func aTabGoneFromTheArchiveIsSkipped() {
+        let (a, b, c) = (UUID(), UUID(), UUID())
+        var history = EdgeForwardHistory()
+        history.archived(a, landing: c)
+        history.archived(b, landing: c)
+        // b was restored or deleted from the Archive: a, archived from the same tab, is offered.
+        #expect(history.next(shown: c, inArchive: { $0 != b }) == .init(archived: a, landing: c))
+    }
 }

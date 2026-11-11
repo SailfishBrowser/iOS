@@ -152,8 +152,8 @@ enum Theme {
             case .readerClose, .readerDragDismiss: readerClose
             case .readerDragReturn: readerReturn
             case .privateToggle: privateToggle
-            // The page leaves from under the finger, or goes back to rest.
-            case .webEdgeSwipe: edgeArchive
+            // The page leaves from under the finger, or goes back to rest; forward, the returning tab's picture comes in.
+            case .webEdgeSwipe, .webForwardSwipe: edgeArchive
             // The magnet's spring is driven per frame with the finger.
             case .webEdgeSwipeFree, .webEdgeSwipeStick: nil
             // Driven per frame from the finger or the scroll view.
@@ -182,7 +182,7 @@ enum Theme {
             // release after its arm; sticking again clicks.
             case .webEdgeSwipeFree: .edgeFreed
             case .webEdgeSwipeStick: .edgeStuck
-            case .webEdgeSwipe: nil
+            case .webEdgeSwipe, .webForwardSwipe: nil
             case .plusTap: .searchOpened
             case .chevronTap: .menuOpened
             // The eyes tap as their neighbour the clear button and the menu's toggles do; the footage cannot show it.
@@ -336,7 +336,7 @@ enum Theme {
                 .menuCopyLink, .menuAddressEdit, .menuAddressSubmit, .pin, .unpin, .menuFind, .menuShare, .zoomStep,
                 .desktopToggle, .displayOptionsToggle, .menuTranslate, .archiveRestore, .macTabsPick,
                 .barSwipe, .barSwipeSettle, .recentRemove, .recentReturn, .readerOpen, .readerClose, .readerDragDismiss,
-                .readerDragReturn, .permissionAnswer, .privateToggle, .webEdgeSwipe:
+                .readerDragReturn, .permissionAnswer, .privateToggle, .webEdgeSwipe, .webForwardSwipe:
                 .frames(2)
             }
         }

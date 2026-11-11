@@ -4,6 +4,7 @@ import UIKit
 // A tile with its glyph centred, and its label under it.
 struct ActionTile: View {
     @Environment(\.isEnabled) private var isEnabled
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let title: String
     let systemImage: String
     let fill: Color
@@ -14,13 +15,16 @@ struct ActionTile: View {
     var on: Color? = nil
     let action: () -> Void
 
-    private static let label = Theme.Typography.menuTileLabelUIFont
-    // A text's frame starts above its cap top and ends below its baseline by the font's own metrics.
-    private static let labelGap = Theme.Metrics.menuTileLabelGap - (label.ascender - label.capHeight)
-    static let labelToList = Theme.Metrics.menuLabelToList - (label.lineHeight - label.ascender)
+    // A text's frame starts above its cap top and ends below its baseline by the font's own metrics, which grow with
+    // the text size.
+    static func labelToList(at dynamicTypeSize: DynamicTypeSize) -> CGFloat {
+        let label = Theme.Typography.menuTileLabel.uiFont(at: dynamicTypeSize)
+        return Theme.Metrics.menuLabelToList - (label.lineHeight - label.ascender)
+    }
 
     var body: some View {
-        VStack(spacing: Self.labelGap) {
+        let label = Theme.Typography.menuTileLabel.uiFont(at: dynamicTypeSize)
+        VStack(spacing: Theme.Metrics.menuTileLabelGap - (label.ascender - label.capHeight)) {
             Button(action: action) {
                 // No symbol transition: the first one in the process holds its frame about 200 ms while it is
                 // prepared, so the pin tile's swap would miss the tap's frame. The glyph swaps with its title.
@@ -37,7 +41,7 @@ struct ActionTile: View {
             .buttonStyle(PressStyle(scale: Theme.Metrics.pressScale, preparing: preparing))
             .accessibilityLabel(title)
             Text(title)
-                .font(Theme.Typography.menuTileLabel)
+                .font(Font(label))
                 .tracking(Theme.Metrics.menuTileLabelTracking)
                 .foregroundStyle(ink.opacity(Theme.Opacity.menuSecondary))
                 .accessibilityHidden(true)

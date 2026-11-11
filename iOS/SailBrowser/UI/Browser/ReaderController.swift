@@ -9,13 +9,17 @@ final class ReaderController: UIViewController, UIGestureRecognizerDelegate, UIS
     WKNavigationDelegate
 {
     static let contentSecurityPolicy = "default-src 'none'; img-src https: data:; style-src 'unsafe-inline'"
-    // reader.css with the Theme's reader tokens in place of its placeholders.
-    static let stylesheet = try! String(
+    private static let template = try! String(
         contentsOf: Bundle.main.url(forResource: "reader", withExtension: "css")!, encoding: .utf8)
-        .replacing("{{bodyFont}}", with: shorthand(Theme.Typography.readerBody))
-        .replacing("{{titleFont}}", with: shorthand(Theme.Typography.readerTitle))
         .replacing("{{measure}}", with: "\(Int(Theme.Metrics.readerMeasure))px")
         .replacing("{{inset}}", with: "\(Int(Theme.Metrics.readerInset))px")
+
+    // reader.css with the Theme's reader tokens in place of its placeholders, its type at the user's text size.
+    static func stylesheet(compatibleWith traits: UITraitCollection) -> String {
+        template
+            .replacing("{{bodyFont}}", with: shorthand(Theme.Typography.readerBody, traits))
+            .replacing("{{titleFont}}", with: shorthand(Theme.Typography.readerTitle, traits))
+    }
 
     // A link tapped in the article, for the tab to load.
     var onOpen: ((URL) -> Void)?
@@ -88,7 +92,7 @@ final class ReaderController: UIViewController, UIGestureRecognizerDelegate, UIS
         return configuration
     }
 
-    static func document(for article: ReaderArticle) -> String {
+    static func document(for article: ReaderArticle, traits: UITraitCollection) -> String {
         let lang = article.lang.map { #" lang="\#(escaped($0))""# } ?? ""
         let dir = article.dir.map { #" dir="\#(escaped($0))""# } ?? ""
         let byline = article.byline.map { #"<p class="byline">\#(escaped($0))</p>"# } ?? ""
@@ -100,15 +104,16 @@ final class ReaderController: UIViewController, UIGestureRecognizerDelegate, UIS
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
             <title>\(escaped(article.title))</title>
-            <style>\(stylesheet)</style>
+            <style>\(stylesheet(compatibleWith: traits))</style>
             </head>
             <body><article><h1>\(escaped(article.title))</h1>\(byline)\(article.html)</article></body>
             </html>
             """
     }
 
-    private static func shorthand(_ font: WebFont) -> String {
-        "\(font.weight) \(Int(font.size))px \(font.family)"
+    private static func shorthand(_ font: WebFont, _ traits: UITraitCollection) -> String {
+        let size = font.size * ScaledFont.growth(of: font.style, at: traits.preferredContentSizeCategory)
+        return "\(font.weight) \(Int(size.rounded()))px \(font.family)"
     }
 
     private static func escaped(_ text: String) -> String {
@@ -126,7 +131,7 @@ final class ReaderController: UIViewController, UIGestureRecognizerDelegate, UIS
         page.pageZoom = zoom
         page.setObscuredInsets(insets)
         awaitsShell = true
-        page.loadHTMLString(Self.document(for: article), baseURL: baseURL)
+        page.loadHTMLString(Self.document(for: article, traits: traitCollection), baseURL: baseURL)
         open()
     }
 

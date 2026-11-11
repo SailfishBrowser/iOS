@@ -17,12 +17,8 @@ final class SearchField: UITextField {
     init(onPress: @escaping () -> Void, onClear: @escaping () -> Void) {
         self.onClear = onClear
         super.init(frame: .zero)
-        font = Theme.Typography.searchFieldUIFont
         textColor = .white
         tintColor = UIColor(Theme.Palette.searchCaret)
-        attributedPlaceholder = NSAttributedString(
-            string: "Search...",
-            attributes: [.foregroundColor: UIColor.white.withAlphaComponent(Theme.Opacity.searchFieldPlaceholder)])
         let glyph = UIImage(
             systemName: "xmark.circle.fill",
             withConfiguration: UIImage.SymbolConfiguration(font: Theme.Typography.searchClearUIFont))!
@@ -35,7 +31,6 @@ final class SearchField: UITextField {
         rightViewMode = .always
         addSubview(privateToggle)
         privateLabel.text = "Incognito"
-        privateLabel.font = Theme.Typography.privateFieldLabelUIFont
         privateLabel.textColor = Theme.Palette.privateFieldLabel
         privateLabel.isUserInteractionEnabled = false
         let wipe = CALayer()
@@ -54,6 +49,23 @@ final class SearchField: UITextField {
         autocorrectionType = .no
         spellCheckingType = .no
         textContentType = .URL
+        applyTextSize()
+        registerForTraitChanges([UITraitPreferredContentSizeCategory.self]) { (field: SearchField, _) in
+            field.applyTextSize()
+        }
+    }
+
+    // The text, the placeholder and the "Incognito" label at the user's text size; the glyphs keep theirs.
+    private func applyTextSize() {
+        font = Theme.Typography.searchField.uiFont(compatibleWith: traitCollection)
+        attributedPlaceholder = NSAttributedString(
+            string: "Search...",
+            attributes: [
+                .font: font!,
+                .foregroundColor: UIColor.white.withAlphaComponent(Theme.Opacity.searchFieldPlaceholder),
+            ])
+        privateLabel.font = Theme.Typography.privateFieldLabel.uiFont(compatibleWith: traitCollection)
+        setNeedsLayout()
     }
 
     @available(*, unavailable)

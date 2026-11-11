@@ -33,6 +33,7 @@ nonisolated struct MenuDrag: Equatable, Sendable {
 struct MenuSheet: View {
     @Environment(AppEnvironment.self) private var env
     @Environment(\.colorScheme) private var systemScheme
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let controller: WebTabController
     let tab: Tab
     let onLook: (MenuLook) -> Void
@@ -83,7 +84,7 @@ struct MenuSheet: View {
                     TrackerFooter(shown: footer, fill: fill, open: siteSettingsAction)
                 }
             }
-            .padding(.top, ActionTile.labelToList)
+            .padding(.top, ActionTile.labelToList(at: dynamicTypeSize))
         }
         .buttonStyle(.plain)
         .foregroundStyle(ink.opacity(Theme.Opacity.menuPrimary))

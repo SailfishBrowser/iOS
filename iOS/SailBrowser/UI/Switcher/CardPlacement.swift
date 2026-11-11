@@ -217,7 +217,10 @@ struct CardPlacement<Header: View>: ViewModifier {
                         .padding(.leading, Theme.Metrics.cardHeaderInset)
                         .frame(width: room.width, height: Theme.Metrics.cardHeaderHeight, alignment: .leading)
                         .scaleEffect(inverse, anchor: .bottomLeading)
-                        .offset(y: -(Theme.Metrics.cardHeaderHeight + Theme.Metrics.cardHeaderAbove * inverse))
+                        // Above the card's drawn top, under its cut status band.
+                        .offset(
+                            y: t.clipTop / t.scale
+                                - (Theme.Metrics.cardHeaderHeight + Theme.Metrics.cardHeaderAbove * inverse))
                         .opacity(t.headerOpacity * room.opacity)
                 }
                 .placed(inner)
@@ -225,7 +228,7 @@ struct CardPlacement<Header: View>: ViewModifier {
         }
         .frame(width: screen.width, height: screen.height)
         .rotationEffect(
-            isActive ? .zero : t.rotation, anchor: UnitPoint(x: 0.5, y: g.clipHeight / g.scale / 2 / screen.height))
+            isActive ? .zero : t.rotation, anchor: UnitPoint(x: 0.5, y: (g.clipTop + g.clipHeight) / g.scale / 2 / screen.height))
         .placed(outer)
         .zIndex(t.zIndex)
     }

@@ -26,6 +26,7 @@ struct DeckView: View {
     }
 
     @Environment(AppEnvironment.self) private var env
+    @Environment(\.screenInsets) private var screenInsets
     @State private var covers = CardCovers()
     @State private var frozenOrder: [UUID]?
     @State private var drag: Drag?
@@ -40,7 +41,7 @@ struct DeckView: View {
         let tabs = orderedTabs
         let activeIndex = tabs.firstIndex { $0.id == env.browser.activeTabID }
         GeometryReader { proxy in
-            let layout = CardLayout(screen: proxy.size)
+            let layout = CardLayout(screen: proxy.size, topCut: screenInsets.top)
             ZStack {
                 DeckBackdrop(driver: driver, isEmpty: tabs.isEmpty)
                 if let activeIndex {
@@ -116,7 +117,10 @@ struct DeckView: View {
             }
             // A turn or a window resize gives the deck a new layout; the swipe and the flick take it the same way.
             .onChange(of: proxy.size) { _, size in
-                withoutAnimation { adopt(CardLayout(screen: size)) }
+                withoutAnimation { adopt(CardLayout(screen: size, topCut: screenInsets.top)) }
+            }
+            .onChange(of: screenInsets.top) { _, top in
+                withoutAnimation { adopt(CardLayout(screen: proxy.size, topCut: top)) }
             }
             #if DEBUG
             .onDisappear {

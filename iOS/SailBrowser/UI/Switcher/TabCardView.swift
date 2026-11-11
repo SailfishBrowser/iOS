@@ -60,6 +60,8 @@ struct CardSnapshot: View {
                 .frame(
                     width: Theme.Metrics.cardPlaceholderFavicon / layout.restScale,
                     height: Theme.Metrics.cardPlaceholderFavicon / layout.restScale)
+                // Centred in the part of the page the card shows, below its cut status band.
+                .offset(y: layout.topCut / 2)
             }
         }
     }

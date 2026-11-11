@@ -54,7 +54,7 @@ enum DeckDrivers {
 
     static func layout() -> CardLayout {
         let window = UIApplication.shared.connectedScenes.compactMap { ($0 as? UIWindowScene)?.keyWindow }.first!
-        return CardLayout(screen: window.bounds.size)
+        return CardLayout(screen: window.bounds.size, topCut: window.screenInsets.top)
     }
 
     private static func lift(

@@ -148,7 +148,7 @@ private struct URLEditor: UIViewRepresentable {
     func makeUIView(context: Context) -> Field {
         let field = Field()
         field.text = text
-        field.font = Theme.Typography.navPillURLUIFont
+        field.font = Theme.Typography.navPillURL.uiFont(at: context.environment.dynamicTypeSize)
         field.keyboardType = .webSearch
         field.returnKeyType = .go
         field.enablesReturnKeyAutomatically = true
@@ -165,5 +165,9 @@ private struct URLEditor: UIViewRepresentable {
 
     func updateUIView(_ field: Field, context: Context) {
         context.coordinator.parent = self
+        let font = Theme.Typography.navPillURL.uiFont(at: context.environment.dynamicTypeSize)
+        if field.font != font {
+            field.font = font
+        }
     }
 }

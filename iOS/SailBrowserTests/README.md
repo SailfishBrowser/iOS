@@ -7,7 +7,8 @@ files in earlier formats are described in `Fixtures/README.md`.
 
 Only logic and persistence whose loss would go unnoticed in use: the stores and their saved files (`BrowserStore`,
 `HistoryStore`, `SessionStore`, `SnapshotStore`, `FaviconStore`, `DownloadStore`, `DebouncedWriter`, and the earlier
-saved-state formats), private tabs never reaching disk, the archive policy and grouping, URL handling (`InputResolver`,
+saved-state formats), private tabs never reaching disk, the chrome's text-size rule (`ScaledFont`) and the reader's
+text size, the archive policy and grouping, URL handling (`InputResolver`,
 `TrackingParams`, `SearchEngine`, `ExternalLinks`, tab export and import), the suggestion ranker, model and service,
 load-error classification, the reader document's escaping, the bundled blocking lists and PageShield data, and the
 connectivity and energy policies.

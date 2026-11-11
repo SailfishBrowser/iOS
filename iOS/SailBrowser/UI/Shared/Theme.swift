@@ -856,6 +856,11 @@ enum Theme {
         nonisolated static let edgeArchiveSnapResponse: Double = 0.16
         nonisolated static let edgeArchiveFlickVelocity: CGFloat = 500
         nonisolated static let edgeArchiveParallax: CGFloat = 0.3
+        // The same swipes move through a page's history: its picture of the page it goes to stays over the page until
+        // that page has committed and painted, or historySwipeHold at most, and a tab keeps pictures of the last
+        // historyPictureLimit pages left.
+        nonisolated static let historySwipeHold: Duration = .seconds(3)
+        nonisolated static let historyPictureLimit = 6
     }
 
     enum Refresh {

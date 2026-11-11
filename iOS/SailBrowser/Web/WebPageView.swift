@@ -29,6 +29,10 @@ struct WebPageView: UIViewRepresentable {
         // The forward swipe's slide: a picture of the tab it brings back comes in from the right over the page.
         private var forwardShift: CGFloat = 0
         private var overlay: ForwardOverlay?
+        // The swipe's picture of where it goes, kept for the hold; and the held picture over a page moving through its
+        // history, a view of its own that no layout of the swipe touches.
+        private var swipePicture: (image: UIImage?, fill: UIColor)?
+        private var held: HeldPicture?
 
         override init(frame: CGRect) {
             super.init(frame: frame)
@@ -73,6 +77,7 @@ struct WebPageView: UIViewRepresentable {
                 overlay.frame = bounds
                 overlay.layout(shift: forwardShift)
             }
+            held?.frame = bounds
         }
 
         func paintBand(height: CGFloat, color: UIColor) {
@@ -105,6 +110,8 @@ struct WebPageView: UIViewRepresentable {
 
         // The picture of the tab the swipe lands on goes under the page, at the page's own size.
         func beginEdgeSwipe(picture: UIImage?, fill: UIColor) {
+            dropHeldPicture()
+            swipePicture = (picture, fill)
             underlay?.removeFromSuperview()
             let underlay = EdgeUnderlay(picture: picture, fill: fill)
             underlay.frame = bounds
@@ -126,10 +133,13 @@ struct WebPageView: UIViewRepresentable {
             edgeShift = 0
             applyTransform()
             endForwardSwipe()
+            swipePicture = nil
         }
 
         // The picture of the tab the forward swipe brings back goes over the page, just off its right edge.
         func beginForwardSwipe(picture: UIImage?, fill: UIColor) {
+            dropHeldPicture()
+            swipePicture = (picture, fill)
             overlay?.removeFromSuperview()
             let overlay = ForwardOverlay(picture: picture, fill: fill)
             overlay.frame = bounds
@@ -145,6 +155,36 @@ struct WebPageView: UIViewRepresentable {
             edgeShift = -shift * Theme.Gesture.edgeArchiveParallax
             applyTransform()
             overlay?.layout(shift: shift)
+        }
+
+        // A history swipe that went: the swipe's picture of the page it went to, which covers the page at the swipe's
+        // end, is put over the whole page in a view of its own, and the swipe ends in the same frame, its page back at
+        // rest under the picture to go there. Nil when the swipe had no picture to hold.
+        func holdSwipePicture() -> UIView? {
+            let picture = swipePicture
+            endEdgeSwipe()
+            dropHeldPicture()
+            guard let picture else { return nil }
+            let held = HeldPicture(picture: picture.image, fill: picture.fill)
+            held.frame = bounds
+            addSubview(held)
+            self.held = held
+            return held
+        }
+
+        // The page it went to shows: that held picture fades off it, unless a newer swipe has already taken it away.
+        func releaseHeldPicture(_ view: UIView) {
+            guard let held, held === view else { return }
+            self.held = nil
+            UIView.animate(
+                withDuration: Theme.Motion.fadeDuration, delay: 0, options: [.curveEaseOut],
+                animations: { held.alpha = 0 },
+                completion: { _ in held.removeFromSuperview() })
+        }
+
+        private func dropHeldPicture() {
+            held?.removeFromSuperview()
+            held = nil
         }
 
         func endForwardSwipe() {
@@ -194,6 +234,7 @@ struct WebPageView: UIViewRepresentable {
         // both.
         func host(_ webView: WKWebView, reader: UIView) {
             endEdgeSwipe()
+            dropHeldPicture()
             for subview in stage.subviews where subview !== band {
                 subview.removeFromSuperview()
             }
@@ -221,6 +262,7 @@ struct WebPageView: UIViewRepresentable {
         // A dismantled card stops answering the page's exit; the policy still hears it.
         func dismantle() {
             endEdgeSwipe()
+            dropHeldPicture()
             fullscreenObservation = nil
             if let webView = hosted, webView.superview?.superview === self {
                 webView.removeFromSuperview()
@@ -302,6 +344,35 @@ struct WebPageView: UIViewRepresentable {
             CATransaction.setDisableActions(true)
             shadowGradient.frame = shadow.bounds
             CATransaction.commit()
+        }
+    }
+
+    // The picture of the page a history swipe went to, over the whole page until that page shows: the picture the page's
+    // width and top aligned over its fill, as the swipe's underlay and overlay draw it at the swipe's end.
+    final class HeldPicture: UIView {
+        private let picture = UIImageView()
+
+        init(picture image: UIImage?, fill: UIColor) {
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+            clipsToBounds = true
+            backgroundColor = fill
+            picture.image = image
+            picture.contentMode = .scaleToFill
+            addSubview(picture)
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) is not supported")
+        }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            if let image = picture.image, image.size.width > 0 {
+                picture.frame = CGRect(
+                    x: 0, y: 0, width: bounds.width, height: image.size.height * bounds.width / image.size.width)
+            }
         }
     }
 

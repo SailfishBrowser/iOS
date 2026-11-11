@@ -13,13 +13,25 @@ import UIKit
 //
 // Its mirror, a swipe left from the right half, goes forward: on the tab an edge swipe landed on, it brings the tab it
 // archived back from the Archive (EdgeForwardHistory). That tab's picture comes in from the right over the page, on
-// the same magnet, as UIKit's forward push; a page with somewhere to go forward keeps WebKit's own forward swipe.
+// the same magnet, as UIKit's forward push.
+//
+// A page with history moves through it the same way, in place of WebKit's own edge swipes (EdgeArchive.backMove,
+// forwardMove): back slides the page off over its picture of the page before, forward slides its picture of the page
+// after in over it, both on the magnet, and the picture stays over the page until the page it went to shows.
 @MainActor final class EdgeArchiveSwipe {
     enum Direction {
-        // Right from the left half: the tab goes to the Archive.
-        case back
-        // Left from the right half: the last tab archived from here comes back.
-        case forward(EdgeForwardHistory.Entry)
+        // Right from the left half: back through the page's history, or, on its first page, the tab to the Archive.
+        case historyBack, archive
+        // Left from the right half: forward through the history, or the last tab archived from here comes back.
+        case historyForward
+        case restore(EdgeForwardHistory.Entry)
+
+        var isForward: Bool {
+            switch self {
+            case .historyForward, .restore: true
+            case .historyBack, .archive: false
+            }
+        }
     }
 
     private struct Swipe {
@@ -35,14 +47,15 @@ import UIKit
 
         // The finger's travel in the swipe's direction.
         func travel(_ x: CGFloat) -> CGFloat {
-            if case .forward = direction { -x } else { x }
+            direction.isForward ? -x : x
         }
 
         // Animatable: the page and its picture where the swipe has them.
         func show(_ offset: CGFloat) {
-            switch direction {
-            case .back: container.setEdgeShift(offset)
-            case .forward: container.setForwardShift(offset)
+            if direction.isForward {
+                container.setForwardShift(offset)
+            } else {
+                container.setEdgeShift(offset)
             }
         }
     }
@@ -69,14 +82,31 @@ import UIKit
     // The active page in the browser with nothing over it and no zoom, swipe or flick in motion, on a tab the swipe
     // may take.
     func takes(_ controller: WebTabController) -> Bool {
-        guard let tab = shownTab(controller) else { return false }
-        return EdgeArchive.outcome(isPinned: tab.isPinned, isPrivate: tab.isPrivate, canGoBack: controller.canGoBack)
-            != nil
+        backDirection(controller) != nil
     }
 
-    // The same page, on the tab an edge swipe landed on while the tab it archived is still in the Archive.
+    // The same page, with somewhere to go forward or a tab the edge swipe archived from here.
     func takesForward(_ controller: WebTabController) -> Bool {
-        shownTab(controller) != nil && env.forwardEntry() != nil
+        forwardDirection(controller) != nil
+    }
+
+    private func backDirection(_ controller: WebTabController) -> Direction? {
+        guard let tab = shownTab(controller) else { return nil }
+        switch EdgeArchive.backMove(canGoBack: controller.canGoBack, isPinned: tab.isPinned, isPrivate: tab.isPrivate) {
+        case .historyBack: return .historyBack
+        case .archive: return .archive
+        case .historyForward, .restore, nil: return nil
+        }
+    }
+
+    private func forwardDirection(_ controller: WebTabController) -> Direction? {
+        guard shownTab(controller) != nil else { return nil }
+        let entry = controller.canGoForward ? nil : env.forwardEntry()
+        switch EdgeArchive.forwardMove(canGoForward: controller.canGoForward, hasArchivedTab: entry != nil) {
+        case .historyForward: return .historyForward
+        case .restore: return entry.map(Direction.restore)
+        case .historyBack, .archive, nil: return nil
+        }
     }
 
     func swiped(_ pan: UIPanGestureRecognizer, on controller: WebTabController) {
@@ -135,12 +165,7 @@ import UIKit
     }
 
     private func began(_ pan: UIPanGestureRecognizer, on controller: WebTabController, forward: Bool) {
-        let direction: Direction?
-        if forward {
-            direction = takesForward(controller) ? env.forwardEntry().map(Direction.forward) : nil
-        } else {
-            direction = takes(controller) ? .back : nil
-        }
+        let direction = forward ? forwardDirection(controller) : backDirection(controller)
         guard let direction, let container = controller.pageContainer else {
             pan.isEnabled = false
             pan.isEnabled = true
@@ -148,11 +173,19 @@ import UIKit
         }
         env.cancelWarmUp()
         presence = FrameRateVote.Presence()
+        let pageFill = Self.fill(env.browser.activeTab?.tint)
         switch direction {
-        case .back:
+        case .archive:
             let (picture, fill) = landing()
             container.beginEdgeSwipe(picture: picture, fill: fill)
-        case .forward(let entry):
+        case .historyBack:
+            // The page left gets its picture now, while it is surely still the one shown, for a swipe forward to it.
+            controller.captureHistoryPicture()
+            container.beginEdgeSwipe(picture: controller.backPicture, fill: pageFill)
+        case .historyForward:
+            controller.captureHistoryPicture()
+            container.beginForwardSwipe(picture: controller.forwardPicture, fill: pageFill)
+        case .restore(let entry):
             let (picture, tint) = env.forwardPicture(for: entry.archived)
             container.beginForwardSwipe(picture: picture, fill: Self.fill(tint))
         }
@@ -229,9 +262,9 @@ import UIKit
         self.swipe = swipe
         if completes {
             switch swipe.direction {
-            case .back where env.browser.previousTabID != nil: env.haptics.fire(.webEdgeSwipe)
-            case .forward: env.haptics.fire(.webForwardSwipe)
-            case .back: break
+            case .archive where env.browser.previousTabID == nil: break
+            case .archive, .historyBack: env.haptics.fire(.webEdgeSwipe)
+            case .historyForward, .restore: env.haptics.fire(.webForwardSwipe)
             }
         }
         generation += 1
@@ -259,20 +292,32 @@ import UIKit
         }
     }
 
-    // Back: the page is off the screen with the landing tab's picture under it; the store switches, and the archived
-    // tab's card leaves with its container, so the picture shows until the landing tab's own card replaces it.
-    // Forward: the returning tab's picture covers the page; the tab comes back with it as its snapshot, and the page
+    // Archive: the page is off the screen with the landing tab's picture under it; the store switches, and the
+    // archived tab's card leaves with its container, so the picture shows until the landing tab's own card replaces it.
+    // Restore: the returning tab's picture covers the page; the tab comes back with it as its snapshot, and the page
     // left keeps its own card, so its picture comes off.
+    // History: the picture of the page gone to covers the page, which moves there under it; the picture fades once
+    // that page shows.
     private func commit(_ swipe: Swipe) {
         switch swipe.direction {
-        case .back:
+        case .archive:
             env.edgeArchived(swipe.tabID)
             if env.browser.tabs.contains(where: { $0.id == swipe.tabID }) {
                 swipe.container.endEdgeSwipe()
             }
-        case .forward(let entry):
+        case .restore(let entry):
             env.edgeForwarded(entry)
             swipe.container.endEdgeSwipe()
+        case .historyBack, .historyForward:
+            let container = swipe.container
+            let back = !swipe.direction.isForward
+            let held = container.holdSwipePicture()
+            Task { [weak controller = swipe.controller] in
+                await controller?.moveThroughHistory(back: back)
+                if let held {
+                    container.releaseHeldPicture(held)
+                }
+            }
         }
     }
 }

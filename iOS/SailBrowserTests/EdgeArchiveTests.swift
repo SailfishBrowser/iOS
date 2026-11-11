@@ -13,7 +13,7 @@ struct EdgeArchiveTests {
         #expect(EdgeArchive.outcome(isPinned: false, isPrivate: true, canGoBack: false) == .close)
     }
 
-    @Test func backHistoryKeepsWebKitsSwipeAndAPinnedTabTakesNone() {
+    @Test func backHistoryOrAPinnedTabArchivesNothing() {
         #expect(EdgeArchive.outcome(isPinned: false, isPrivate: false, canGoBack: true) == nil)
         #expect(EdgeArchive.outcome(isPinned: false, isPrivate: true, canGoBack: true) == nil)
         #expect(EdgeArchive.outcome(isPinned: true, isPrivate: false, canGoBack: false) == nil)
@@ -161,5 +161,18 @@ struct EdgeArchiveTests {
         history.archived(b, landing: c)
         // b was restored or deleted from the Archive: a, archived from the same tab, is offered.
         #expect(history.next(shown: c, inArchive: { $0 != b }) == .init(archived: a, landing: c))
+    }
+
+    // Back goes through the page's history first and archives only on the first page; forward goes through the history
+    // first and brings an archived tab back only with none.
+    @Test func historyComesBeforeTheTabMoves() {
+        #expect(EdgeArchive.backMove(canGoBack: true, isPinned: false, isPrivate: false) == .historyBack)
+        #expect(EdgeArchive.backMove(canGoBack: true, isPinned: true, isPrivate: true) == .historyBack)
+        #expect(EdgeArchive.backMove(canGoBack: false, isPinned: false, isPrivate: false) == .archive(.archive))
+        #expect(EdgeArchive.backMove(canGoBack: false, isPinned: false, isPrivate: true) == .archive(.close))
+        #expect(EdgeArchive.backMove(canGoBack: false, isPinned: true, isPrivate: false) == nil)
+        #expect(EdgeArchive.forwardMove(canGoForward: true, hasArchivedTab: true) == .historyForward)
+        #expect(EdgeArchive.forwardMove(canGoForward: false, hasArchivedTab: true) == .restore)
+        #expect(EdgeArchive.forwardMove(canGoForward: false, hasArchivedTab: false) == nil)
     }
 }

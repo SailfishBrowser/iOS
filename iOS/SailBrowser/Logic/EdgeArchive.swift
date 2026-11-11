@@ -11,11 +11,28 @@ nonisolated enum EdgeArchive {
         case close
     }
 
-    // Nil leaves the edge alone: a page with back history keeps WebKit's own back swipe, and a pinned tab is never
-    // archived by a gesture, as the timed sweep never archives it.
+    // What the swipe does to a tab on its first page. Nil archives nothing: a page with back history goes back through
+    // it instead (backMove), and a pinned tab is never archived by a gesture, as the timed sweep never archives it.
     static func outcome(isPinned: Bool, isPrivate: Bool, canGoBack: Bool) -> Outcome? {
         guard !canGoBack, !isPinned else { return nil }
         return isPrivate ? .close : .archive
+    }
+
+    // What a swipe does. Right from the left half: back through the page's history, or, on its first page, the tab to
+    // the Archive (outcome). Left from the right half: forward through the history, or, with none, the tab the back
+    // swipe archived from here comes back.
+    enum Move: Equatable, Sendable {
+        case historyBack, archive(Outcome), historyForward, restore
+    }
+
+    static func backMove(canGoBack: Bool, isPinned: Bool, isPrivate: Bool) -> Move? {
+        if canGoBack { return .historyBack }
+        return outcome(isPinned: isPinned, isPrivate: isPrivate, canGoBack: false).map(Move.archive)
+    }
+
+    static func forwardMove(canGoForward: Bool, hasArchivedTab: Bool) -> Move? {
+        if canGoForward { return .historyForward }
+        return hasArchivedTab ? .restore : nil
     }
 
     // A touch starting anywhere in the left part of the page is watched, so the swipe needs no aim at the edge.

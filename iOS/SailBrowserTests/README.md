@@ -11,7 +11,7 @@ saved-state formats), private tabs never reaching disk, the archive policy and g
 `TrackingParams`, `SearchEngine`, `ExternalLinks`, tab export and import), the suggestion ranker, model and service,
 load-error classification, the reader document's escaping, the bundled blocking lists and PageShield data, the
 connectivity and energy policies, and the edge swipe's pure half (`EdgeArchive`: which tabs it archives, closes or
-leaves alone, and its start, lock and release rules).
+leaves alone, its start, lock and release rules, and the magnet that holds the page).
 
 Views, gestures, animations, materials, layout, haptics and anything that drives a live web view are left to the
 running app. A new test belongs here only if it guards such a contract and depends on none of those.

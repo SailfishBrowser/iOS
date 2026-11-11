@@ -1,11 +1,13 @@
 import SwiftUI
 import UIKit
 
-// A swipe in from the left edge of a page with nothing to go back to archives its tab, as a card thrown away in the
-// switcher, and shows the tab shown before it, the one a flick on the tab stack goes to. The page slides right with
-// the finger over that tab's picture, as UIKit's back swipe slides over the screen under it; a release past half the
-// width, or a flick right, sends the page off and archives the tab once it has gone, and a short release or a flick
-// back springs it to rest. A private tab closes instead, a pinned tab takes no swipe, and a page with somewhere to go
+// A swipe right from the left half of a page with nothing to go back to archives its tab, as a card thrown away in the
+// switcher, and shows the tab shown before it, the one a flick on the tab stack goes to. The page slides right over
+// that tab's picture, as UIKit's back swipe slides over the screen under it, but held as by a magnet, as Arc Search's
+// is (EdgeMagnet): it gives a little under the finger with a texture that sharpens as the pull grows, comes free with
+// a thock past the unstick line and closes on the finger, and sticks again with a click back under it. A release while
+// it is free sends the page off and archives the tab once it has gone; one while it is held, or a flick back, springs
+// it to rest. A private tab closes instead, a pinned tab takes no swipe, and a page with somewhere to go
 // back to keeps WebKit's own back swipe (EdgeArchive.outcome). With no other tab the empty deck shows, as after the
 // switcher's last card.
 @MainActor final class EdgeArchiveSwipe {
@@ -14,6 +16,7 @@ import UIKit
         let controller: WebTabController
         let container: WebPageView.Container
         let tabID: Tab.ID
+        var magnet: EdgeMagnet
         var offset: CGFloat = 0
         // Set by the release: whether the spring ends with the tab archived.
         var completes: Bool?
@@ -25,6 +28,9 @@ import UIKit
     private var generation = 0
     // The 120 Hz vote while the finger has the page; the release's spring holds its own.
     private var presence: FrameRateVote.Presence?
+    // Draws the page each frame while the finger has it, so the magnet's spring runs under a still finger, and drives
+    // the texture.
+    private var clock: FrameClock?
 
     init(env: AppEnvironment) {
         self.env = env
@@ -71,6 +77,7 @@ import UIKit
         guard let swipe else { return }
         generation += 1
         presence = nil
+        stopMagnet()
         self.swipe = nil
         if swipe.completes == true {
             commit(swipe)
@@ -94,9 +101,14 @@ import UIKit
         presence = FrameRateVote.Presence()
         let (picture, fill) = landing()
         container.beginEdgeSwipe(picture: picture, fill: fill)
-        swipe = Swipe(pan: pan, controller: controller, container: container, tabID: controller.tabID)
-        env.haptics.prepare(.webEdgeSwipe)
+        swipe = Swipe(
+            pan: pan, controller: controller, container: container, tabID: controller.tabID,
+            magnet: EdgeMagnet(width: container.bounds.width))
+        env.haptics.prepare(.webEdgeSwipe, .webEdgeSwipeFree, .webEdgeSwipeStick)
         move(to: pan.translation(in: container).x)
+        clock = FrameClock { [weak self] now in
+            self?.frame(at: now) ?? false
+        }
     }
 
     // The previous tab's picture over its tint, or its tint alone; with no other tab, the empty deck's backdrop.
@@ -112,20 +124,48 @@ import UIKit
 
     private func move(to translation: CGFloat) {
         guard var swipe else { return }
-        swipe.offset = EdgeArchive.offset(translation: translation, width: swipe.container.bounds.width)
+        let now = ContinuousClock.now
+        switch swipe.magnet.update(translation: translation, at: now) {
+        case .freed: env.haptics.fire(.webEdgeSwipeFree)
+        case .stuck: env.haptics.fire(.webEdgeSwipeStick)
+        case nil: break
+        }
+        swipe.offset = swipe.magnet.offset(at: now)
         swipe.container.setEdgeShift(swipe.offset)
         self.swipe = swipe
     }
 
-    // The haptic plays at the release that commits, as the tab switch it promises; an emptied deck plays nothing.
+    // Each frame the finger has the page: the page where the magnet draws it, and the texture under the finger.
+    private func frame(at now: ContinuousClock.Instant) -> Bool {
+        guard var swipe, swipe.completes == nil else { return false }
+        env.haptics.drive(Theme.Haptic.edgeTexture, swipe.magnet.level(at: now))
+        let offset = swipe.magnet.offset(at: now)
+        if offset != swipe.offset {
+            swipe.offset = offset
+            swipe.container.setEdgeShift(offset)
+        }
+        self.swipe = swipe
+        return true
+    }
+
+    private func stopMagnet() {
+        clock?.stop()
+        clock = nil
+        env.haptics.stop(Theme.Haptic.edgeTexture)
+    }
+
+    // The page coming free already played the haptic the archive promises; the release records itself silently.
     private func release(velocity: CGFloat, cancelled: Bool) {
         guard var swipe else { return }
         presence = nil
+        stopMagnet()
+        swipe.offset = swipe.magnet.offset(at: .now)
+        swipe.container.setEdgeShift(swipe.offset)
         let width = swipe.container.bounds.width
         // A tab switch from elsewhere under the finger (a link opening a tab) leaves the page at rest.
         let isCurrent = swipe.controller === env.activeController && env.browser.activeTabID == swipe.tabID
         let completes =
-            !cancelled && isCurrent && EdgeArchive.completes(offset: swipe.offset, velocity: velocity, width: width)
+            !cancelled && isCurrent && EdgeArchive.completes(isFree: swipe.magnet.isFree, velocity: velocity)
         swipe.completes = completes
         self.swipe = swipe
         if completes, env.browser.previousTabID != nil {

@@ -154,6 +154,8 @@ enum Theme {
             case .privateToggle: privateToggle
             // The page leaves from under the finger, or goes back to rest.
             case .webEdgeSwipe: edgeArchive
+            // The magnet's spring is driven per frame with the finger.
+            case .webEdgeSwipeFree, .webEdgeSwipeStick: nil
             // Driven per frame from the finger or the scroll view.
             case .deckScroll, .cardLift, .pullTick, .pullArm, .searchGrabDuringOpen, .menuGrabDuringOpen, .barSwipe: nil
             // Nothing moves: the card stays opaque, the field clears and the label swaps without animation.
@@ -175,8 +177,12 @@ enum Theme {
             switch interaction {
             // The pinch presses the tab stack button, so it plays the button's tap.
             case .tabStackTap, .pinchSwitcher: .switcherOpened
-            // The edge swipe lands on the previous tab as the flick does; it plays nothing when it empties the deck.
-            case .tabStackFlick, .archiveRestore, .macTabsPick, .webEdgeSwipe: .tabSwitched
+            case .tabStackFlick, .archiveRestore, .macTabsPick: .tabSwitched
+            // The page coming free of the magnet promises the archive, so the release adds nothing, as the pull's
+            // release after its arm; sticking again clicks.
+            case .webEdgeSwipeFree: .edgeFreed
+            case .webEdgeSwipeStick: .edgeStuck
+            case .webEdgeSwipe: nil
             case .plusTap: .searchOpened
             case .chevronTap: .menuOpened
             // The eyes tap as their neighbour the clear button and the menu's toggles do; the footage cannot show it.
@@ -239,6 +245,8 @@ enum Theme {
             case .refreshNearing: Haptic.refreshTicks[step]
             case .refreshArmed: Haptic.refreshArm
             case .refreshLanded: Haptic.refreshLand
+            case .edgeFreed: Haptic.refreshArm
+            case .edgeStuck: Haptic.edgeRestick
             }
         }
     }
@@ -283,10 +291,16 @@ enum Theme {
         // at 30 s, so a pull held longer than that goes quiet until the release.
         static let pullTexture = HapticTexture(intensity: 0.3, sharpness: 0.1...0.4)
         nonisolated static let pullTextureSpeed: CGFloat = 1500
-        static let textures = [pullTexture]
+        // The edge swipe's hold: the same kind of texture under the finger while the page is held, full at
+        // edgeTextureSpeed points per second, its sharpness rising as the pull nears the point where the page comes
+        // free. The page coming free plays the refresh arm's thock; sticking again, a light click.
+        static let edgeTexture = HapticTexture(intensity: 0.4, sharpness: 0.15...0.6)
+        nonisolated static let edgeTextureSpeed: CGFloat = 900
+        static let edgeRestick = HapticFeedback.pattern(HapticPattern(.tap(0.35, 0.75)))
+        static let textures = [pullTexture, edgeTexture]
         // A double tap as the fresh page shows, the second a touch firmer.
         static let refreshLand = HapticFeedback.pattern(HapticPattern(.tap(0.5, 0.5), .tap(0.6, 0.5, at: 0.07)))
-        static let all = [medium, rigid, selection, success] + refreshTicks + [refreshArm, refreshLand]
+        static let all = [medium, rigid, selection, success] + refreshTicks + [refreshArm, refreshLand, edgeRestick]
         // A prepared generator idles again after a short while, so one prepared longer ago is prepared again.
         static let preparedFor: Duration = .seconds(1)
         // UIKit's haptic engine cooled down 2.9 s after its last start on the phone. After any
@@ -308,7 +322,8 @@ enum Theme {
 
         static func budget(for interaction: Interaction) -> LatencyBudget {
             switch interaction {
-            case .cardArchiveArm, .pullTick, .pullArm, .barSwipeTick, .recentArm: .frames(0)
+            case .cardArchiveArm, .pullTick, .pullArm, .barSwipeTick, .recentArm, .webEdgeSwipeFree, .webEdgeSwipeStick:
+                .frames(0)
             case .barTranslate: .frames(2)
             case .launch, .barIntro, .clearData, .refreshLand: .timed
             case .foregroundRaise, .chevronLongPress, .archiveOpen, .macTabsOpen, .settingsOpen, .archiveDelete,
@@ -828,12 +843,17 @@ enum Theme {
         // The deck builds this many cards behind the span of a motion and this many ahead of it.
         nonisolated static let deckBuiltBehind: CGFloat = 4
         nonisolated static let deckBuiltAhead: CGFloat = 2
-        // The edge swipe that archives a tab with no back history: a touch starting within edgeArchiveZone of the
-        // page's left edge (about WebKit's own back swipe's zone), completing past half the width or on a flick
-        // faster than edgeArchiveFlickVelocity either way. The tab underneath trails by edgeArchiveParallax of the
-        // width, as UIKit's back swipe does.
-        nonisolated static let edgeArchiveZone: CGFloat = 24
-        nonisolated static let edgeArchiveCommitFraction: CGFloat = 0.5
+        // The edge swipe that archives a tab with no back history, as Arc Search's: a touch starting anywhere in the
+        // left edgeArchiveZoneFraction of the page. The page is held as by a magnet: it gives a rubber band's way, up
+        // to edgeArchiveHoldFraction of the width, until the finger has gone edgeArchiveUnstickFraction of the width,
+        // where it comes free and springs to the finger in about edgeArchiveSnapResponse seconds; back under the line
+        // it sticks again. A release while it is free archives, unless it flicks back faster than
+        // edgeArchiveFlickVelocity; one while it is held springs back. The tab underneath trails by
+        // edgeArchiveParallax of the width, as UIKit's back swipe does. Tune on the phone.
+        nonisolated static let edgeArchiveZoneFraction: CGFloat = 0.5
+        nonisolated static let edgeArchiveHoldFraction: CGFloat = 0.12
+        nonisolated static let edgeArchiveUnstickFraction: CGFloat = 0.3
+        nonisolated static let edgeArchiveSnapResponse: Double = 0.16
         nonisolated static let edgeArchiveFlickVelocity: CGFloat = 500
         nonisolated static let edgeArchiveParallax: CGFloat = 0.3
     }

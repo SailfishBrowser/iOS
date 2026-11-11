@@ -74,6 +74,13 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     @ObservationIgnored var onFirstRevealOrFailure: (() -> Void)?
     @ObservationIgnored var onBarHiddenChanged: (() -> Void)?
     @ObservationIgnored var onDownload: ((WKDownload) -> Void)?
+    // The swipe in from the page's left edge that archives the tab when there is nothing to go back to: the
+    // environment says whether the tab and the app take it now, and drives it.
+    @ObservationIgnored var takesEdgeSwipe: () -> Bool = { false }
+    @ObservationIgnored var onEdgeSwipe: ((UIPanGestureRecognizer) -> Void)?
+    // The swipe left from the page's right half that brings back the tab the edge swipe archived, the same way.
+    @ObservationIgnored var takesForwardSwipe: () -> Bool = { false }
+    @ObservationIgnored var onForwardSwipe: ((UIPanGestureRecognizer) -> Void)?
     // The tab's last real picture, read once when an error page is made and held for the error's life.
     @ObservationIgnored var lastSnapshot: () -> UIImage? = { nil }
     // Applies a host's site settings to this web view for a main-frame navigation and returns them.
@@ -92,6 +99,10 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     @ObservationIgnored private let haptics: HapticsEngine
     @ObservationIgnored private var bars = BarVisibility()
     @ObservationIgnored private var pinchTracker = PinchToSwitcher.Tracker()
+    @ObservationIgnored private var edgePan: UIPanGestureRecognizer?
+    @ObservationIgnored private var forwardPan: UIPanGestureRecognizer?
+    @ObservationIgnored private let historyPictures = HistoryPictures()
+    @ObservationIgnored private var historyMove: HistoryMove?
     @ObservationIgnored private var capturesAtZoomEnd = false
     @ObservationIgnored private var pull = PullToRefresh()
     @ObservationIgnored private var safeTop: CGFloat = 0
@@ -175,7 +186,8 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         webView.navigationDelegate = self
         webView.uiDelegate = self
         webView.scrollView.delegate = self
-        webView.allowsBackForwardNavigationGestures = true
+        // The page's history swipes are the app's own (EdgeArchiveSwipe): from anywhere in either half, on the magnet.
+        webView.allowsBackForwardNavigationGestures = false
         webView.allowsLinkPreview = true
         webView.isFindInteractionEnabled = true
         webView.scrollView.contentInsetAdjustmentBehavior = .never
@@ -193,6 +205,24 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched))
         pinch.delegate = self
         webView.addGestureRecognizer(pinch)
+
+        // A plain pan watching only touches that start in the page's left half (EdgeArchive.startsInZone), so the
+        // swipe needs no aim at the edge and reads the page's own width in any window on iPad. It goes back through the
+        // page's history, or archives the tab on its first page.
+        let edge = UIPanGestureRecognizer(target: self, action: #selector(edgeSwiped))
+        edge.maximumNumberOfTouches = 1
+        edge.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+        edge.delegate = self
+        webView.addGestureRecognizer(edge)
+        edgePan = edge
+
+        // Its mirror in the right half: forward through the history, or the tab the edge swipe archived from here.
+        let forward = UIPanGestureRecognizer(target: self, action: #selector(forwardSwiped))
+        forward.maximumNumberOfTouches = 1
+        forward.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+        forward.delegate = self
+        webView.addGestureRecognizer(forward)
+        forwardPan = forward
 
         observations = [
             webView.observe(\.title, options: .new) { [weak self] webView, _ in
@@ -440,10 +470,77 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         onPinchZoomEnded?()
     }
 
+    private func isSwipePan(_ recognizer: UIGestureRecognizer) -> Bool {
+        recognizer === edgePan || recognizer === forwardPan
+    }
+
+    // The edge and forward pans run alone; every other recognizer here runs alongside WebKit's.
     func gestureRecognizer(
         _ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
     ) -> Bool {
-        true
+        !isSwipePan(gestureRecognizer) && !isSwipePan(other)
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        let x = touch.location(in: webView).x
+        if gestureRecognizer === edgePan {
+            return EdgeArchive.startsInZone(x: x, width: webView.bounds.width) && takesEdgeSwipeNow
+        }
+        if gestureRecognizer === forwardPan {
+            return EdgeArchive.startsInForwardZone(x: x, width: webView.bounds.width) && takesForwardSwipeNow
+        }
+        return true
+    }
+
+    // A pan that moves off horizontal in its direction fails at once and leaves the touch to the page's scroll, as
+    // does any pan on a page zoomed in and scrolled sideways, which scrolls to that edge first.
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard isSwipePan(gestureRecognizer), let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
+        let translation = pan.translation(in: webView)
+        let moved = CGSize(width: translation.x, height: translation.y)
+        let scroll = webView.scrollView
+        if pan === forwardPan {
+            return EdgeArchive.beginsForward(translation: moved)
+                && EdgeArchive.pageAtRightEdge(
+                    offsetX: scroll.contentOffset.x, contentWidth: scroll.contentSize.width,
+                    width: scroll.bounds.width, rightInset: scroll.adjustedContentInset.right)
+                && takesForwardSwipeNow
+        }
+        return EdgeArchive.begins(translation: moved)
+            && EdgeArchive.pageAtLeftEdge(offsetX: scroll.contentOffset.x, leftInset: scroll.adjustedContentInset.left)
+            && takesEdgeSwipeNow
+    }
+
+    // The page's scroll waits for a touch a swipe pan watches to fail as that swipe, so a swipe never also scrolls a
+    // wide page sideways; the pan fails as soon as it reads vertical. A touch neither pan watches never waits.
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy other: UIGestureRecognizer
+    ) -> Bool {
+        isSwipePan(gestureRecognizer) && other === webView.scrollView.panGestureRecognizer
+    }
+
+    // Only the page itself: not under the summary's fold, in the reader or in element fullscreen. The environment
+    // picks the move: back through the history, or the tab to the Archive on its first page.
+    private var takesEdgeSwipeNow: Bool {
+        fold == nil && readerArticle == nil && webView.fullscreenState == .notInFullscreen && takesEdgeSwipe()
+    }
+
+    // The same places: forward through the history, or the tab the edge swipe archived back.
+    private var takesForwardSwipeNow: Bool {
+        fold == nil && readerArticle == nil && webView.fullscreenState == .notInFullscreen && takesForwardSwipe()
+    }
+
+    @objc private func edgeSwiped(_ pan: UIPanGestureRecognizer) {
+        onEdgeSwipe?(pan)
+    }
+
+    @objc private func forwardSwiped(_ pan: UIPanGestureRecognizer) {
+        onForwardSwipe?(pan)
+    }
+
+    // The card the page is hosted in, while it is.
+    var pageContainer: WebPageView.Container? {
+        webView.superview?.superview as? WebPageView.Container
     }
 
     func load(_ url: URL) {
@@ -460,6 +557,62 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
 
     func goForward() {
         webView.goForward()
+    }
+
+    // The page a history swipe goes to, as it was last left; the page under the error page when back clears it.
+    var backPicture: UIImage? {
+        coversCommittedPage ? lastSnapshot() : historyPictures.image(for: webView.backForwardList.backItem)
+    }
+
+    var forwardPicture: UIImage? {
+        historyPictures.image(for: webView.backForwardList.forwardItem)
+    }
+
+    // The shown page's picture for its place in the history, so a swipe back to it later shows it. Dropped if the page
+    // has moved on by the time it is taken.
+    func captureHistoryPicture() {
+        guard let item = webView.backForwardList.currentItem, let width = webView.window?.bounds.width else { return }
+        Task { [weak self] in
+            guard let image = await self?.snapshot(width: width), let self,
+                webView.backForwardList.currentItem === item
+            else { return }
+            historyPictures.store(image, for: item)
+        }
+    }
+
+    // A history swipe's landing: back or forward, then, once the page it went to has committed (a move within the page:
+    // once its URL has changed) and painted, the swipe's picture may come off; historySwipeHold at most, for a slow
+    // load. The back-forward list moves to the new item as the navigation starts, before anything of it is drawn, so
+    // the navigation's own commit is what is waited for. Clearing the error page commits nothing.
+    func moveThroughHistory(back: Bool) async {
+        if back, coversCommittedPage {
+            clearError()
+            await nextPresentation()
+            return
+        }
+        let navigation = back ? webView.goBack() : webView.goForward()
+        let move = HistoryMove(navigation: navigation)
+        endHistoryMove()
+        historyMove = move
+        Task { [weak self] in
+            try? await Task.sleep(for: Theme.Gesture.historySwipeHold)
+            self?.endHistoryMove(move)
+        }
+        await move.landed()
+        await nextPresentation()
+    }
+
+    // The waiting move, or the given one only, is done.
+    private func endHistoryMove(_ move: HistoryMove? = nil) {
+        guard let current = historyMove, move == nil || current === move else { return }
+        historyMove = nil
+        current.finish()
+    }
+
+    private func endHistoryMove(for navigation: WKNavigation?) {
+        if let move = historyMove, move.navigation === navigation {
+            endHistoryMove(move)
+        }
     }
 
     // With an error page showing, every reload path retries the failed URL: a never-committed tab has nothing to
@@ -559,6 +712,10 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     // while it is loading, and its finish checks it.
     private func urlChanged(_ url: URL?) {
         self.url = url
+        // A history move within the page commits nothing; its URL changing is its landing.
+        if historyMove != nil, !webView.isLoading {
+            endHistoryMove()
+        }
         if readerArticle != nil {
             closeReader()
         }
@@ -802,6 +959,10 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
             return (.cancel, preferences)
         }
         if navigationAction.shouldPerformDownload { return (.download, preferences) }
+        // The page is still shown while the next one is decided: its picture is taken for a swipe back to it.
+        if navigationAction.targetFrame?.isMainFrame == true {
+            captureHistoryPicture()
+        }
         if let link = LinkRequest(navigationAction), await leavesForApp(link) { return (.cancel, preferences) }
         preferences.preferredContentMode = prefersDesktop ? .desktop : .mobile
         if navigationAction.targetFrame?.isMainFrame == true {
@@ -834,6 +995,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
 
     // WebKit reports navigation callbacks for the main frame only.
     func webView(_ webView: WKWebView, didCommit navigation: WKNavigation!) {
+        endHistoryMove(for: navigation)
         provisionalURL = nil
         if webView.url != lastTermination?.url {
             lastTermination = nil
@@ -944,6 +1106,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     }
 
     func webView(_ webView: WKWebView, didFail navigation: WKNavigation!, withError error: any Error) {
+        endHistoryMove(for: navigation)
         if (error as? URLError)?.code == .cancelled, webView.isLoading { return }
         cancelLanding()
         firstRevealOrFailure()
@@ -953,6 +1116,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     func webView(
         _ webView: WKWebView, didFailProvisionalNavigation navigation: WKNavigation!, withError error: any Error
     ) {
+        endHistoryMove(for: navigation)
         if (error as? URLError)?.code == .cancelled, webView.isLoading { return }
         cancelLanding()
         // The failed navigation's site was applied when it was decided; the page still shown is the committed one.
@@ -1294,5 +1458,52 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
                 self?.onFavicon?(host, urls)
             }
         }
+    }
+}
+
+// Pictures of the pages in a tab's back-forward list, newest last and only the last few, each held for as long as its
+// history item is.
+@MainActor final class HistoryPictures {
+    private struct Entry {
+        weak var item: WKBackForwardListItem?
+        let image: UIImage
+    }
+
+    private var entries: [Entry] = []
+
+    func store(_ image: UIImage, for item: WKBackForwardListItem) {
+        entries.removeAll { $0.item == nil || $0.item === item }
+        entries.append(Entry(item: item, image: image))
+        if entries.count > Theme.Gesture.historyPictureLimit {
+            entries.removeFirst(entries.count - Theme.Gesture.historyPictureLimit)
+        }
+    }
+
+    func image(for item: WKBackForwardListItem?) -> UIImage? {
+        guard let item else { return nil }
+        return entries.last { $0.item === item }?.image
+    }
+}
+
+// A history swipe's navigation, waited on until it lands. Finished once only: by its commit, a failure, the page's URL
+// changing within the page, a newer move or the hold running out, whichever is first.
+@MainActor final class HistoryMove {
+    let navigation: WKNavigation?
+    private var isFinished = false
+    private var waiter: CheckedContinuation<Void, Never>?
+
+    init(navigation: WKNavigation?) {
+        self.navigation = navigation
+    }
+
+    func landed() async {
+        guard !isFinished else { return }
+        await withCheckedContinuation { waiter = $0 }
+    }
+
+    func finish() {
+        isFinished = true
+        waiter?.resume()
+        waiter = nil
     }
 }

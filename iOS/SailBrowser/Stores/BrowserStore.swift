@@ -103,6 +103,16 @@ import Observation
         archive([id])
     }
 
+    // The edge swipe's archive: the shown tab goes, and the tab shown before it comes to the front, the previous tab
+    // a flick on the tab stack goes to, not the deck's last. A private tab keeps no entry. Nil when no tab is left.
+    @discardableResult func archiveShowingPrevious(_ id: Tab.ID) -> Tab.ID? {
+        if activeTabID == id, let previous = previousTabID {
+            activate(previous)
+        }
+        archive([id])
+        return activeTabID
+    }
+
     // Nil when the entry is already gone: a second tap on an archive row before the sheet has left.
     @discardableResult func restore(_ id: ArchivedTab.ID) -> Tab? {
         guard let i = archived.firstIndex(where: { $0.id == id }) else { return nil }

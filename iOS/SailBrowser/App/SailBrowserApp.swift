@@ -71,6 +71,7 @@ struct SailBrowserApp: App {
     // A hardware keyboard's command L, as on the Mac. A swipe or a flick still springing lands first, as the pill does.
     private func openSearch() {
         guard let env, env.ui.canOpen(.search) else { return }
+        env.edgeSwipe.finish()
         env.flick?.finish()
         env.pager?.finish()
         env.ui.open(.search)

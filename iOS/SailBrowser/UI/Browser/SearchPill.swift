@@ -39,6 +39,7 @@ struct SearchPill: View {
     // to and no landing runs under the sheet.
     private func open() {
         guard env.ui.canOpen(.search) else { return }
+        env.edgeSwipe.finish()
         env.flick?.finish()
         env.pager?.finish()
         env.haptics.fire(.plusTap)

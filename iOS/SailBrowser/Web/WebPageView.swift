@@ -22,6 +22,17 @@ struct WebPageView: UIViewRepresentable {
         private let crop = CropLayer()
         private var cropHeight = CGFloat.infinity
         private var cropTop: CGFloat = 0
+        private var geometry: CardGeometry?
+        // The edge swipe's slide: the page moves right with the finger over a picture of the tab it lands on.
+        private var edgeShift: CGFloat = 0
+        private var underlay: EdgeUnderlay?
+        // The forward swipe's slide: a picture of the tab it brings back comes in from the right over the page.
+        private var forwardShift: CGFloat = 0
+        private var overlay: ForwardOverlay?
+        // The swipe's picture of where it goes, kept for the hold; and the held picture over a page moving through its
+        // history, a view of its own that no layout of the swipe touches.
+        private var swipePicture: (image: UIImage?, fill: UIColor)?
+        private var held: HeldPicture?
 
         override init(frame: CGRect) {
             super.init(frame: frame)
@@ -58,6 +69,15 @@ struct WebPageView: UIViewRepresentable {
             band.frame.size.width = bounds.width
             privateBand.frame = band.bounds
             applyCrop()
+            if let underlay {
+                underlay.frame = bounds
+                underlay.layout(shift: edgeShift)
+            }
+            if let overlay {
+                overlay.frame = bounds
+                overlay.layout(shift: forwardShift)
+            }
+            held?.frame = bounds
         }
 
         func paintBand(height: CGFloat, color: UIColor) {
@@ -72,13 +92,108 @@ struct WebPageView: UIViewRepresentable {
         }
 
         func apply(_ geometry: CardGeometry) {
-            stage.transform = CGAffineTransform(translationX: geometry.offset.width, y: geometry.offset.height)
-                .scaledBy(x: geometry.scale, y: geometry.scale)
+            self.geometry = geometry
+            applyTransform()
             stage.layer.cornerRadius = geometry.corner / geometry.scale
             stage.alpha = geometry.opacity
             cropHeight = geometry.clipHeight / geometry.scale
             cropTop = geometry.clipTop / geometry.scale
             applyCrop()
+        }
+
+        private func applyTransform() {
+            guard let geometry else { return }
+            stage.transform = CGAffineTransform(
+                translationX: geometry.offset.width + edgeShift, y: geometry.offset.height
+            ).scaledBy(x: geometry.scale, y: geometry.scale)
+        }
+
+        // The picture of the tab the swipe lands on goes under the page, at the page's own size.
+        func beginEdgeSwipe(picture: UIImage?, fill: UIColor) {
+            dropHeldPicture()
+            swipePicture = (picture, fill)
+            underlay?.removeFromSuperview()
+            let underlay = EdgeUnderlay(picture: picture, fill: fill)
+            underlay.frame = bounds
+            insertSubview(underlay, belowSubview: stage)
+            self.underlay = underlay
+            setEdgeShift(0)
+        }
+
+        // Animatable: a block animation moves the page, the picture's parallax, its dim and the page's shadow together.
+        func setEdgeShift(_ shift: CGFloat) {
+            edgeShift = shift
+            applyTransform()
+            underlay?.layout(shift: shift)
+        }
+
+        func endEdgeSwipe() {
+            underlay?.removeFromSuperview()
+            underlay = nil
+            edgeShift = 0
+            applyTransform()
+            endForwardSwipe()
+            swipePicture = nil
+        }
+
+        // The picture of the tab the forward swipe brings back goes over the page, just off its right edge.
+        func beginForwardSwipe(picture: UIImage?, fill: UIColor) {
+            dropHeldPicture()
+            swipePicture = (picture, fill)
+            overlay?.removeFromSuperview()
+            let overlay = ForwardOverlay(picture: picture, fill: fill)
+            overlay.frame = bounds
+            addSubview(overlay)
+            self.overlay = overlay
+            setForwardShift(0)
+        }
+
+        // Animatable: the picture slides in over the page, and the page trails it left by the back swipe's parallax and
+        // dims under it, as UIKit's forward push.
+        func setForwardShift(_ shift: CGFloat) {
+            forwardShift = shift
+            edgeShift = -shift * Theme.Gesture.edgeArchiveParallax
+            applyTransform()
+            overlay?.layout(shift: shift)
+        }
+
+        // A history swipe that went: the swipe's picture of the page it went to, which covers the page at the swipe's
+        // end, is put over the whole page in a view of its own, and the swipe ends in the same frame, its page back at
+        // rest under the picture to go there. Nil when the swipe had no picture to hold.
+        func holdSwipePicture() -> UIView? {
+            let picture = swipePicture
+            endEdgeSwipe()
+            dropHeldPicture()
+            guard let picture else { return nil }
+            let held = HeldPicture(picture: picture.image, fill: picture.fill)
+            held.frame = bounds
+            addSubview(held)
+            self.held = held
+            return held
+        }
+
+        // The page it went to shows: that held picture fades off it, unless a newer swipe has already taken it away.
+        func releaseHeldPicture(_ view: UIView) {
+            guard let held, held === view else { return }
+            self.held = nil
+            UIView.animate(
+                withDuration: Theme.Motion.fadeDuration, delay: 0, options: [.curveEaseOut],
+                animations: { held.alpha = 0 },
+                completion: { _ in held.removeFromSuperview() })
+        }
+
+        private func dropHeldPicture() {
+            held?.removeFromSuperview()
+            held = nil
+        }
+
+        func endForwardSwipe() {
+            guard overlay != nil else { return }
+            overlay?.removeFromSuperview()
+            overlay = nil
+            forwardShift = 0
+            edgeShift = 0
+            applyTransform()
         }
 
         private func applyCrop() {
@@ -118,6 +233,8 @@ struct WebPageView: UIViewRepresentable {
         // The reader sits over the page in the card, so it takes the card's place, corner and crop; the band stays over
         // both.
         func host(_ webView: WKWebView, reader: UIView) {
+            endEdgeSwipe()
+            dropHeldPicture()
             for subview in stage.subviews where subview !== band {
                 subview.removeFromSuperview()
             }
@@ -144,6 +261,8 @@ struct WebPageView: UIViewRepresentable {
 
         // A dismantled card stops answering the page's exit; the policy still hears it.
         func dismantle() {
+            endEdgeSwipe()
+            dropHeldPicture()
             fullscreenObservation = nil
             if let webView = hosted, webView.superview?.superview === self {
                 webView.removeFromSuperview()
@@ -171,6 +290,143 @@ struct WebPageView: UIViewRepresentable {
                 view.topAnchor.constraint(equalTo: stage.topAnchor),
                 view.bottomAnchor.constraint(equalTo: stage.bottomAnchor),
             ])
+        }
+    }
+
+    // Under the page during an edge swipe: the landing tab's picture over its tint, trailing the page by a share of the
+    // width and dimmed until the page has gone, with a soft shadow along the page's left edge.
+    final class EdgeUnderlay: UIView {
+        private let content = UIView()
+        private let picture = UIImageView()
+        private let dim = UIView()
+        private let shadow = UIView()
+        private let shadowGradient = CAGradientLayer()
+
+        init(picture image: UIImage?, fill: UIColor) {
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+            clipsToBounds = true
+            content.backgroundColor = fill
+            picture.image = image
+            picture.contentMode = .scaleToFill
+            content.addSubview(picture)
+            addSubview(content)
+            dim.backgroundColor = .black
+            addSubview(dim)
+            shadowGradient.colors = [UIColor.clear.cgColor, UIColor.black.withAlphaComponent(0.2).cgColor]
+            shadowGradient.startPoint = CGPoint(x: 0, y: 0.5)
+            shadowGradient.endPoint = CGPoint(x: 1, y: 0.5)
+            shadow.layer.addSublayer(shadowGradient)
+            addSubview(shadow)
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) is not supported")
+        }
+
+        // The picture is the page's width, top aligned, as the switcher's card draws it.
+        func layout(shift: CGFloat) {
+            let width = bounds.width
+            let progress = EdgeArchive.progress(offset: shift, width: width)
+            content.bounds = bounds
+            content.center = CGPoint(
+                x: bounds.midX + EdgeArchive.underlayOffset(progress: progress, width: width), y: bounds.midY)
+            if let image = picture.image, image.size.width > 0 {
+                picture.frame = CGRect(x: 0, y: 0, width: width, height: image.size.height * width / image.size.width)
+            }
+            dim.frame = bounds
+            dim.alpha = EdgeArchive.underlayDim(progress: progress)
+            let shadowWidth = Theme.Metrics.edgeArchiveShadow
+            shadow.frame = CGRect(x: shift - shadowWidth, y: 0, width: shadowWidth, height: bounds.height)
+            shadow.alpha = 1 - progress
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            shadowGradient.frame = shadow.bounds
+            CATransaction.commit()
+        }
+    }
+
+    // The picture of the page a history swipe went to, over the whole page until that page shows: the picture the page's
+    // width and top aligned over its fill, as the swipe's underlay and overlay draw it at the swipe's end.
+    final class HeldPicture: UIView {
+        private let picture = UIImageView()
+
+        init(picture image: UIImage?, fill: UIColor) {
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+            clipsToBounds = true
+            backgroundColor = fill
+            picture.image = image
+            picture.contentMode = .scaleToFill
+            addSubview(picture)
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) is not supported")
+        }
+
+        override func layoutSubviews() {
+            super.layoutSubviews()
+            if let image = picture.image, image.size.width > 0 {
+                picture.frame = CGRect(
+                    x: 0, y: 0, width: bounds.width, height: image.size.height * bounds.width / image.size.width)
+            }
+        }
+    }
+
+    // Over the page during a forward swipe: the returning tab's picture over its tint, coming in from the right edge
+    // with a soft shadow along its left edge, and a dim over the page it covers.
+    final class ForwardOverlay: UIView {
+        private let dim = UIView()
+        private let content = UIView()
+        private let picture = UIImageView()
+        private let shadow = UIView()
+        private let shadowGradient = CAGradientLayer()
+
+        init(picture image: UIImage?, fill: UIColor) {
+            super.init(frame: .zero)
+            isUserInteractionEnabled = false
+            clipsToBounds = true
+            dim.backgroundColor = .black
+            addSubview(dim)
+            shadowGradient.colors = [UIColor.clear.cgColor, UIColor.black.withAlphaComponent(0.2).cgColor]
+            shadowGradient.startPoint = CGPoint(x: 0, y: 0.5)
+            shadowGradient.endPoint = CGPoint(x: 1, y: 0.5)
+            shadow.layer.addSublayer(shadowGradient)
+            addSubview(shadow)
+            content.backgroundColor = fill
+            content.clipsToBounds = true
+            picture.image = image
+            picture.contentMode = .scaleToFill
+            content.addSubview(picture)
+            addSubview(content)
+        }
+
+        @available(*, unavailable)
+        required init?(coder: NSCoder) {
+            fatalError("init(coder:) is not supported")
+        }
+
+        // The picture is the page's width, top aligned, as the switcher's card and the back swipe's underlay draw it.
+        func layout(shift: CGFloat) {
+            let width = bounds.width
+            let progress = EdgeArchive.progress(offset: shift, width: width)
+            content.frame = CGRect(x: width - shift, y: 0, width: width, height: bounds.height)
+            if let image = picture.image, image.size.width > 0 {
+                picture.frame = CGRect(x: 0, y: 0, width: width, height: image.size.height * width / image.size.width)
+            }
+            dim.frame = bounds
+            // The page under the picture dims as it is covered, as the tab under the back swipe brightens.
+            dim.alpha = progress * Theme.Opacity.edgeArchiveDim
+            let shadowWidth = Theme.Metrics.edgeArchiveShadow
+            shadow.frame = CGRect(x: width - shift - shadowWidth, y: 0, width: shadowWidth, height: bounds.height)
+            shadow.alpha = 1 - progress
+            CATransaction.begin()
+            CATransaction.setDisableActions(true)
+            shadowGradient.frame = shadow.bounds
+            CATransaction.commit()
         }
     }
 

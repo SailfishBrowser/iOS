@@ -18,7 +18,7 @@ nonisolated enum Interaction: String, CaseIterable, Sendable {
     case readerOpen, readerClose, readerDragDismiss, readerDragReturn
     case archiveOpen, settingsOpen, archiveRestore, archiveDelete, settingsChange, clearData, sheetDone
     case macTabsOpen, macTabsPick
-    case webEdgeSwipe
+    case webEdgeSwipe, webForwardSwipe, webEdgeSwipeFree, webEdgeSwipeStick
     case recentArm, recentRemove, recentReturn
     case permissionAnswer
     case privateToggle

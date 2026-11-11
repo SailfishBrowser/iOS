@@ -153,7 +153,7 @@ import SwiftUI
 
     private func begin(_ translation: CGSize, from start: CGPoint) {
         guard BarSwipe.lock(translation) == .vertical, translation.height < 0, env.ui.overlay == .none,
-            env.ui.deckProgress == 0, !driver.isZooming
+            env.ui.deckProgress == 0, !driver.isZooming, !env.edgeSwipe.isMoving
         else { return }
         // A swipe on the bar still springing lands first, so the flick leaves the tab it lands on. A flick still
         // landing (the stack's touch-down takes any other flick where drawn) lands first too, so this one flicks back

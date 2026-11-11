@@ -118,6 +118,9 @@ enum Theme {
         nonisolated static let privateRowsFade = MotionToken.curve(duration: 8.0 / 60, .linear)
         // The page's fold settles from a release, and plays back from the card, on this spring.
         nonisolated static let fold = MotionToken.spring(duration: 0.32, bounce: 0)
+        // The edge swipe's release, off the screen or back to rest, carrying the finger's speed with no overshoot, so
+        // a cancelled page never shows the tab underneath past its edge. Tune on the phone.
+        nonisolated static let edgeArchive = MotionToken.spring(duration: 0.3, bounce: 0)
 
         static func token(for interaction: Interaction) -> MotionToken? {
             switch interaction {
@@ -149,6 +152,8 @@ enum Theme {
             case .readerClose, .readerDragDismiss: readerClose
             case .readerDragReturn: readerReturn
             case .privateToggle: privateToggle
+            // The page leaves from under the finger, or goes back to rest.
+            case .webEdgeSwipe: edgeArchive
             // Driven per frame from the finger or the scroll view.
             case .deckScroll, .cardLift, .pullTick, .pullArm, .searchGrabDuringOpen, .menuGrabDuringOpen, .barSwipe: nil
             // Nothing moves: the card stays opaque, the field clears and the label swaps without animation.
@@ -159,7 +164,7 @@ enum Theme {
             case .refreshLand: nil
             // System UI or WebKit owns the motion.
             case .chevronLongPress, .archiveOpen, .macTabsOpen, .settingsOpen, .archiveDelete, .settingsChange,
-                .sheetDone, .webEdgeSwipe, .zoomStep:
+                .sheetDone, .zoomStep:
                 nil
             }
         }
@@ -170,7 +175,8 @@ enum Theme {
             switch interaction {
             // The pinch presses the tab stack button, so it plays the button's tap.
             case .tabStackTap, .pinchSwitcher: .switcherOpened
-            case .tabStackFlick, .archiveRestore, .macTabsPick: .tabSwitched
+            // The edge swipe lands on the previous tab as the flick does; it plays nothing when it empties the deck.
+            case .tabStackFlick, .archiveRestore, .macTabsPick, .webEdgeSwipe: .tabSwitched
             case .plusTap: .searchOpened
             case .chevronTap: .menuOpened
             // The eyes tap as their neighbour the clear button and the menu's toggles do; the footage cannot show it.
@@ -215,7 +221,7 @@ enum Theme {
             // Chrome follows content (platform).
             case .barHide, .barShow: nil
             // System controls and WebKit own their feedback.
-            case .archiveDelete, .settingsChange, .webEdgeSwipe: nil
+            case .archiveDelete, .settingsChange: nil
             // The arm already confirmed the removal; a return is a non-event.
             case .recentRemove, .recentReturn: nil
             }
@@ -306,7 +312,7 @@ enum Theme {
             case .barTranslate: .frames(2)
             case .launch, .barIntro, .clearData, .refreshLand: .timed
             case .foregroundRaise, .chevronLongPress, .archiveOpen, .macTabsOpen, .settingsOpen, .archiveDelete,
-                .settingsChange, .sheetDone, .webEdgeSwipe:
+                .settingsChange, .sheetDone:
                 .system
             case .tabStackTap, .tabStackFlick, .pinchSwitcher, .deckCardTap, .deckBackgroundTap, .deckScroll,
                 .cardLift, .cardThrow, .cardReturn, .deckEmptied, .plusTap, .searchTyping, .searchClear, .suggestionTap,
@@ -315,7 +321,7 @@ enum Theme {
                 .menuCopyLink, .menuAddressEdit, .menuAddressSubmit, .pin, .unpin, .menuFind, .menuShare, .zoomStep,
                 .desktopToggle, .displayOptionsToggle, .menuTranslate, .archiveRestore, .macTabsPick,
                 .barSwipe, .barSwipeSettle, .recentRemove, .recentReturn, .readerOpen, .readerClose, .readerDragDismiss,
-                .readerDragReturn, .permissionAnswer, .privateToggle:
+                .readerDragReturn, .permissionAnswer, .privateToggle, .webEdgeSwipe:
                 .frames(2)
             }
         }
@@ -435,6 +441,8 @@ enum Theme {
     }
 
     enum Metrics {
+        // The soft shadow along the left edge of a page swiped in from the edge.
+        static let edgeArchiveShadow: CGFloat = 12
         static let barHeight: CGFloat = 42
         static let cardWidthFraction: CGFloat = 0.70
         // A window this wide shows the deck's cards at the narrower fraction, the same shape and centre, so the next
@@ -657,6 +665,8 @@ enum Theme {
         // The incognito sheet reads 54 to 59 against 97 to 111 over the same white page.
         static let privateSheetShade: CGFloat = 0.45
         static let menuDim: CGFloat = 0.2
+        // The tab under a page swiped in from the left edge starts this dimmed, as under UIKit's back swipe.
+        nonisolated static let edgeArchiveDim: CGFloat = 0.2
         static let menuSheetTint: CGFloat = 0.12
         static let menuSheetEdge: CGFloat = 0.12
         // The pill's, tiles' and rows' fill over the sheet, and the stepper's over its row.
@@ -818,6 +828,14 @@ enum Theme {
         // The deck builds this many cards behind the span of a motion and this many ahead of it.
         nonisolated static let deckBuiltBehind: CGFloat = 4
         nonisolated static let deckBuiltAhead: CGFloat = 2
+        // The edge swipe that archives a tab with no back history: a touch starting within edgeArchiveZone of the
+        // page's left edge (about WebKit's own back swipe's zone), completing past half the width or on a flick
+        // faster than edgeArchiveFlickVelocity either way. The tab underneath trails by edgeArchiveParallax of the
+        // width, as UIKit's back swipe does.
+        nonisolated static let edgeArchiveZone: CGFloat = 24
+        nonisolated static let edgeArchiveCommitFraction: CGFloat = 0.5
+        nonisolated static let edgeArchiveFlickVelocity: CGFloat = 500
+        nonisolated static let edgeArchiveParallax: CGFloat = 0.3
     }
 
     enum Refresh {

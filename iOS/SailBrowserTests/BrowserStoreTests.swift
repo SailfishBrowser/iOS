@@ -130,6 +130,45 @@ struct BrowserStoreTests {
         #expect(store.tabs.map(\.id) == [a, b, c])
     }
 
+    // The edge swipe lands on the tab shown before, as the tab stack's flick does, not on the deck's last.
+    @Test func archivingShowingPreviousLandsOnThePreviousTab() {
+        let store = makeStore()
+        let tabs = openTabs(store, "a", "b", "c")
+        clock.advance(1)
+        store.activate(tabs[0].id)
+        clock.advance(1)
+        store.activate(tabs[1].id)
+        var removed: [[Tab.ID]] = []
+        store.onTabsRemoved = { removed.append($0) }
+
+        #expect(store.archiveShowingPrevious(tabs[1].id) == tabs[0].id)
+        #expect(store.activeTabID == tabs[0].id)
+        #expect(store.tabs.map(\.id) == [tabs[0].id, tabs[2].id])
+        #expect(store.archived.map(\.url) == [tabs[1].url])
+        #expect(removed == [[tabs[1].id]])
+    }
+
+    @Test func archivingShowingPreviousTheLastTabLeavesNone() {
+        let store = makeStore()
+        let tab = openTabs(store, "a")[0]
+
+        #expect(store.archiveShowingPrevious(tab.id) == nil)
+        #expect(store.tabs.isEmpty)
+        #expect(store.archived.map(\.url) == [tab.url])
+    }
+
+    // A private tab is closed, not archived: it keeps no entry.
+    @Test func archivingShowingPreviousAPrivateTabClosesIt() {
+        let store = makeStore()
+        let normal = openTabs(store, "a")[0]
+        clock.advance(1)
+        let secret = store.openTab(url: URL(string: "https://b.com")!, isPrivate: true)
+
+        #expect(store.archiveShowingPrevious(secret.id) == normal.id)
+        #expect(store.tabs.map(\.id) == [normal.id])
+        #expect(store.archived.isEmpty)
+    }
+
     @Test func archivingActivePicksRightmostRemaining() throws {
         let store = makeStore()
         let tabs = openTabs(store, "a", "b", "c")

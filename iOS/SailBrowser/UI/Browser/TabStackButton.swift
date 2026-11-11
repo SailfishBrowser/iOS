@@ -19,9 +19,11 @@ struct TabStackButton: View {
     // The touch picked up a flick already moving, so its release is the flick's whatever its own travel.
     @State private var caught = false
     let foreground: Color
+    // The bar's control fill, for the stack's blank cards when no other tab is open.
+    let fill: Color
 
     var body: some View {
-        TabStackThumbnails(foreground: foreground)
+        TabStackThumbnails(foreground: foreground, fill: fill)
             .frame(width: Theme.Metrics.tabStackButtonSize.width, height: Theme.Metrics.tabStackButtonSize.height)
             .contentShape(Rectangle().inset(by: -Self.hitOutset))
             .gesture(
@@ -100,6 +102,7 @@ struct TabStackThumbnails: View {
 
     @Environment(AppEnvironment.self) private var env
     let foreground: Color
+    let fill: Color
 
     // The stack: the two most recent other tabs, the front one the tab a
     // flick goes to. While the front card is out of the stack, as the flick's rising card or the swipe's older card,
@@ -141,11 +144,16 @@ struct TabStackThumbnails: View {
         return cards(recent: recent(in: env), flights: flights)
     }
 
-    // Reads the driver's out card, written once per gesture, not the per-frame flights.
+    // Reads the driver's out card, written once per gesture, not the per-frame flights. With no other tab open the
+    // stack shows its blank cards, as Arc's does; a stack only emptied by its card being out of it shows nothing.
     var body: some View {
         let byID = Dictionary(uniqueKeysWithValues: env.browser.tabs.map { ($0.id, $0) })
-        let fixed = Self.fixed(recent: Self.recent(in: env), outOfStack: env.ui.deck.outOfStack)
+        let recent = Self.recent(in: env)
+        let fixed = Self.fixed(recent: recent, outOfStack: env.ui.deck.outOfStack)
         ZStack {
+            if recent.isEmpty {
+                EmptyTabStack(foreground: foreground, fill: fill)
+            }
             ForEach(fixed.reversed(), id: \.id) { card in
                 let content = StackThumbnail.content(of: byID[card.id]!, snapshots: env.snapshots, inSwipe: false)
                 StackThumbnail(thumbnail: content.thumbnail, fill: content.fill, foreground: foreground)
@@ -222,6 +230,44 @@ struct StackCopy: View {
 }
 
 // A tab's picture as the stack draws it: the page from its top, as the deck's card clips it, with a hairline border.
+// The stack's two blank cards, back then front in the stack's places. Each is solid within the stack: the front card
+// covers the back one where they overlap, so the pair reads as two cards, not a darker overlap, however translucent the
+// bar's fill. Drawn bigger than the button, which never clips it, so the turned cards keep their corners.
+struct EmptyTabStack: View {
+    @Environment(\.displayScale) private var displayScale
+    let foreground: Color
+    let fill: Color
+
+    var body: some View {
+        let size = Theme.Metrics.tabStackPlaceholderSize
+        let border = foreground.opacity(Theme.Opacity.tabStackBorder)
+        let line = 1 / displayScale
+        let span = 2 * (hypot(size.width, size.height) / 2
+            + Theme.Metrics.tabStackThumbnailOffsets.map { hypot($0.width, $0.height) }.max()!)
+        Canvas { context, canvas in
+            for rank in [1, 0] {
+                var card = context
+                let offset = Theme.Metrics.tabStackThumbnailOffsets[rank]
+                card.translateBy(x: canvas.width / 2 + offset.width, y: canvas.height / 2 + offset.height)
+                card.rotate(by: .degrees(Theme.Metrics.tabStackPlaceholderTilts[rank]))
+                let rect = CGRect(x: -size.width / 2, y: -size.height / 2, width: size.width, height: size.height)
+                card.blendMode = .copy
+                card.fill(
+                    RoundedRectangle(cornerRadius: Theme.Metrics.tabStackThumbnailCorner).path(in: rect),
+                    with: .color(fill))
+                card.blendMode = .normal
+                card.stroke(
+                    RoundedRectangle(cornerRadius: Theme.Metrics.tabStackThumbnailCorner - line / 2)
+                        .path(in: rect.insetBy(dx: line / 2, dy: line / 2)),
+                    with: .color(border), lineWidth: line)
+            }
+        }
+        .frame(width: span, height: span)
+        .allowsHitTesting(false)
+        .accessibilityHidden(true)
+    }
+}
+
 struct StackCard: View {
     @Environment(\.displayScale) private var displayScale
     let thumbnail: Thumbnail?

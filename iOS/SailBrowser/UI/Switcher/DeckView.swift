@@ -243,6 +243,7 @@ struct DeckView: View {
 
     // The driver is shared and outlives these; a swipe or flick still moving lands before its owner is replaced.
     private func adopt(_ layout: CardLayout) {
+        env.edgeSwipe.finish()
         env.pager?.finish()
         env.flick?.finish()
         driver.adopt(layout)

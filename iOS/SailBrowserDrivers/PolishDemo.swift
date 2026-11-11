@@ -46,6 +46,7 @@ enum PolishDemo {
         .privateToggle,
         .pinchSwitcher,
         .macTabsOpen, .macTabsPick,
+        .webEdgeSwipeFree, .webEdgeSwipeStick,
     ]
 
     static func play(in env: AppEnvironment) async throws {

@@ -35,6 +35,8 @@ import WebKit
     @ObservationIgnored var pager: TabPager?
     // The tab stack's flick to the previous tab.
     @ObservationIgnored var flick: TabStackFlick?
+    // The swipe in from a page's left edge that archives a tab with nothing to go back to.
+    @ObservationIgnored lazy var edgeSwipe = EdgeArchiveSwipe(env: self)
     // Asks over the page whether its host may use these; nil when the prompt is dismissed without an answer.
     @ObservationIgnored lazy var askMedia: (WKWebView, String, [MediaKind]) async -> Bool? = {
         [unowned self] webView, host, kinds in
@@ -166,11 +168,13 @@ import WebKit
         }
     }
 
-    // A thrown tab is archived when its gap close settles; leaving the foreground commits it first, while the cards
-    // keep moving. The assertion is begun here, before the app enters the background, as the system asks.
+    // A thrown tab is archived when its gap close settles, and an edge-swiped one when its page has left; leaving the
+    // foreground commits both first, while the cards keep moving. The assertion is begun here, before the app enters
+    // the background, as the system asks.
     func sceneWillResignActive() {
         beginAssertionIfNeeded()
         ui.deck.finishDeparture()
+        edgeSwipe.finish()
     }
 
     // A Control Center pull or a Face ID prompt that returns: the assertion begun at the resign is let go.
@@ -217,6 +221,7 @@ import WebKit
     // Another tab switch lands a swipe on the bar or a flick on the tab stack first, so its landing cannot undo the
     // switch.
     func open(_ url: URL, isPrivate: Bool = false) {
+        edgeSwipe.finish()
         flick?.finish()
         pager?.finish()
         captureOutgoingSnapshot()
@@ -290,6 +295,7 @@ import WebKit
     // The button's zoom-out with the page left live in its card; the caller picks the moment for the page's picture.
     private func openSwitcher(via interaction: Interaction) -> Bool {
         guard ui.overlay == .none else { return false }
+        edgeSwipe.finish()
         flick?.finish()
         pager?.finish()
         haptics.fire(interaction)
@@ -314,6 +320,7 @@ import WebKit
     }
 
     func activatePreviousTab() {
+        edgeSwipe.finish()
         flick?.finish()
         pager?.finish()
         guard let previous = browser.previousTabID else { return }
@@ -332,6 +339,23 @@ import WebKit
     func archive(_ id: Tab.ID) {
         browser.archive(id)
         attachActiveController()
+    }
+
+    // The edge swipe's page has left the screen: its tab is archived, or closed if private, and the tab shown before
+    // it comes to the front in place. With none left the empty deck shows at once, as the switcher shows it after its
+    // last card is thrown; the page has already gone, so nothing zooms.
+    func edgeArchived(_ id: Tab.ID) {
+        guard browser.tabs.contains(where: { $0.id == id }) else { return }
+        var transaction = Transaction()
+        transaction.disablesAnimations = true
+        withTransaction(transaction) {
+            browser.archiveShowingPrevious(id)
+            attachActiveController()
+        }
+        if browser.activeTab == nil {
+            haptics.fire(.deckEmptied)
+            ui.setDeck(1, animated: false)
+        }
     }
 
     func restore(_ id: ArchivedTab.ID) {
@@ -692,6 +716,8 @@ import WebKit
             self?.pinchedToSummary(controller) == true
         }
         controller.onSummaryClosed = { [weak self] in self?.ui.close() }
+        controller.takesEdgeSwipe = { [weak self, unowned controller] in self?.edgeSwipe.takes(controller) == true }
+        controller.onEdgeSwipe = { [weak self, unowned controller] pan in self?.edgeSwipe.swiped(pan, on: controller) }
         controller.onOpenWindow = { [weak self] webView, url in
             guard let self else { return }
             flick?.finish()
@@ -781,7 +807,7 @@ import WebKit
 
     private func takesPinch(_ controller: WebTabController) -> Bool {
         controller === activeController && ui.overlay == .none && !ui.deck.barsShowDeck && pager?.isMoving != true
-            && flick?.isMoving != true
+            && flick?.isMoving != true && !edgeSwipe.isMoving
     }
 
     private func pinchZoomEnded(_ controller: WebTabController) {
@@ -802,6 +828,8 @@ import WebKit
                 controller.onPinchZoomEnded = nil
                 controller.onPinchToSummary = nil
                 controller.onSummaryClosed = nil
+                controller.takesEdgeSwipe = { false }
+                controller.onEdgeSwipe = nil
             }
             settledSnapshotTasks.removeValue(forKey: id)?.cancel()
             pool.discard(id)

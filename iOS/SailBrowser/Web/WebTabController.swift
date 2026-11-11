@@ -74,6 +74,10 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     @ObservationIgnored var onFirstRevealOrFailure: (() -> Void)?
     @ObservationIgnored var onBarHiddenChanged: (() -> Void)?
     @ObservationIgnored var onDownload: ((WKDownload) -> Void)?
+    // The swipe in from the page's left edge that archives the tab when there is nothing to go back to: the
+    // environment says whether the tab and the app take it now, and drives it.
+    @ObservationIgnored var takesEdgeSwipe: () -> Bool = { false }
+    @ObservationIgnored var onEdgeSwipe: ((UIPanGestureRecognizer) -> Void)?
     // The tab's last real picture, read once when an error page is made and held for the error's life.
     @ObservationIgnored var lastSnapshot: () -> UIImage? = { nil }
     // Applies a host's site settings to this web view for a main-frame navigation and returns them.
@@ -92,6 +96,7 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
     @ObservationIgnored private let haptics: HapticsEngine
     @ObservationIgnored private var bars = BarVisibility()
     @ObservationIgnored private var pinchTracker = PinchToSwitcher.Tracker()
+    @ObservationIgnored private var edgePan: UIPanGestureRecognizer?
     @ObservationIgnored private var capturesAtZoomEnd = false
     @ObservationIgnored private var pull = PullToRefresh()
     @ObservationIgnored private var safeTop: CGFloat = 0
@@ -193,6 +198,16 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         let pinch = UIPinchGestureRecognizer(target: self, action: #selector(pinched))
         pinch.delegate = self
         webView.addGestureRecognizer(pinch)
+
+        // A plain pan watching only touches that start in the page's left half (EdgeArchive.startsInZone), so the
+        // swipe needs no aim at the edge and reads the page's own width in any window on iPad. It never sees a touch
+        // while WebKit's own back swipe has somewhere to go.
+        let edge = UIPanGestureRecognizer(target: self, action: #selector(edgeSwiped))
+        edge.maximumNumberOfTouches = 1
+        edge.allowedTouchTypes = [NSNumber(value: UITouch.TouchType.direct.rawValue)]
+        edge.delegate = self
+        webView.addGestureRecognizer(edge)
+        edgePan = edge
 
         observations = [
             webView.observe(\.title, options: .new) { [weak self] webView, _ in
@@ -440,10 +455,53 @@ final class WebTabController: NSObject, WKNavigationDelegate, WKUIDelegate, UISc
         onPinchZoomEnded?()
     }
 
+    // The edge pan runs alone; every other recognizer here runs alongside WebKit's.
     func gestureRecognizer(
         _ gestureRecognizer: UIGestureRecognizer, shouldRecognizeSimultaneouslyWith other: UIGestureRecognizer
     ) -> Bool {
-        true
+        gestureRecognizer !== edgePan && other !== edgePan
+    }
+
+    func gestureRecognizer(_ gestureRecognizer: UIGestureRecognizer, shouldReceive touch: UITouch) -> Bool {
+        guard gestureRecognizer === edgePan else { return true }
+        return EdgeArchive.startsInZone(x: touch.location(in: webView).x, width: webView.bounds.width)
+            && takesEdgeSwipeNow
+    }
+
+    // A pan that moves off horizontal right fails at once and leaves the touch to the page's scroll, as does any pan on
+    // a page zoomed in and scrolled sideways, which scrolls back to its left edge first.
+    func gestureRecognizerShouldBegin(_ gestureRecognizer: UIGestureRecognizer) -> Bool {
+        guard gestureRecognizer === edgePan, let pan = gestureRecognizer as? UIPanGestureRecognizer else { return true }
+        let translation = pan.translation(in: webView)
+        let scroll = webView.scrollView
+        return EdgeArchive.begins(translation: CGSize(width: translation.x, height: translation.y))
+            && EdgeArchive.pageAtLeftEdge(offsetX: scroll.contentOffset.x, leftInset: scroll.adjustedContentInset.left)
+            && takesEdgeSwipeNow
+    }
+
+    // The page's scroll waits for a touch in the left half to fail as the edge swipe, so a swipe right never also
+    // scrolls a wide page sideways; it fails as soon as the pan reads vertical. A touch in the right half never
+    // reaches the edge pan and the scroll does not wait.
+    func gestureRecognizer(
+        _ gestureRecognizer: UIGestureRecognizer, shouldBeRequiredToFailBy other: UIGestureRecognizer
+    ) -> Bool {
+        gestureRecognizer === edgePan && other === webView.scrollView.panGestureRecognizer
+    }
+
+    // Only the page itself: never with back history (the error page over a committed page counts, its back clears
+    // the error), under the summary's fold, in the reader or in element fullscreen.
+    private var takesEdgeSwipeNow: Bool {
+        !canGoBack && fold == nil && readerArticle == nil && webView.fullscreenState == .notInFullscreen
+            && takesEdgeSwipe()
+    }
+
+    @objc private func edgeSwiped(_ pan: UIPanGestureRecognizer) {
+        onEdgeSwipe?(pan)
+    }
+
+    // The card the page is hosted in, while it is.
+    var pageContainer: WebPageView.Container? {
+        webView.superview?.superview as? WebPageView.Container
     }
 
     func load(_ url: URL) {

@@ -441,7 +441,8 @@ enum Theme {
         // card shows beside the focused one.
         static let wideDeckWidth: CGFloat = 700
         static let wideCardWidthFraction: CGFloat = 0.50
-        static let cardCorner: CGFloat = 15
+        // A deck card's corner, Arc's: 23 and 25 pt fitted to its card's top and bottom corners on a 430 x 932 phone.
+        static let cardCorner: CGFloat = 24
         static let displayCorner: CGFloat = 55
         static let padDisplayCorner: CGFloat = 18
         static let searchSheetCorner: CGFloat = 38
@@ -480,8 +481,7 @@ enum Theme {
         // rise, the peek scale as its top meets the safe line (the card's size follows its height), then
         // keeps that size wherever it is dragged (grown over 40 pt of travel instead it was the peek's size in three
         // frames of a flick, off the screen below the finger). Its shape follows the law below. The corner reads 4 pt
-        // on the thumbnail, about 12 pt once the card is a card and 17 pt at full size, so the grown card keeps the deck
-        // card's corner.
+        // on the thumbnail and eases with the shape to the deck card's corner, so the grown card keeps it.
         static let tabStackFlickArmScale: CGFloat = 0.84
         static let tabStackFlickPeekScale: CGFloat = 0.63
         static let tabStackFlickInset: CGFloat = 24

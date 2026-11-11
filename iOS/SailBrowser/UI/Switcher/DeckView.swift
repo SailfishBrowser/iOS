@@ -208,7 +208,8 @@ struct DeckView: View {
                 DeckCard(
                     driver: driver,
                     content: { TabCardView(tab: tab, isActive: index == activeIndex, layout: layout, geometry: $0) },
-                    index: index, activeIndex: activeIndex, isLast: index == tabs.count - 1, layout: layout,
+                    index: index, activeIndex: activeIndex, isLast: index == tabs.count - 1,
+                    last: CGFloat(tabs.count - 1), layout: layout,
                     header: CardHeader(tab: tab),
                     coverImage: index == activeIndex ? coverImage : nil, tint: tab.tint,
                     controller: index == activeIndex ? controller : nil, covers: covers, tabID: tab.id,
@@ -223,7 +224,8 @@ struct DeckView: View {
                             .frame(width: layout.screen.width, height: layout.screen.height)
                             .placedAndClipped(geometry)
                     },
-                    index: ghost.slot, activeIndex: -1, isLast: false, layout: layout, header: CardHeader(tab: ghost.tab),
+                    index: ghost.slot, activeIndex: -1, isLast: false, last: CGFloat(tabs.count - 1), layout: layout,
+                    header: CardHeader(tab: ghost.tab),
                     coverImage: nil, tint: ghost.tab.tint, controller: nil, covers: covers, tabID: ghost.id,
                     isPrivate: ghost.tab.isPrivate)
                     .transition(.identity)
@@ -359,8 +361,9 @@ struct DeckView: View {
             gesture: DeckGesture(
                 start: CardLayout.unstretched(position, last: CGFloat(tabs.count - 1)),
                 cardIndex: layout.card(
-                    at: value.startLocation, activeIndex: activeIndex, position: position, progress: driver.progress,
-                    olderProgress: driver.olderProgress, in: range, slot: { slots[$0] }),
+                    at: value.startLocation, activeIndex: activeIndex, position: position,
+                    last: CGFloat(tabs.count - 1), progress: driver.progress, olderProgress: driver.olderProgress,
+                    in: range, slot: { slots[$0] }),
                 cardHeight: layout.cardSize.height))
         driver.keepLifts(Set(tabs.map(\.id)))
     }
@@ -425,8 +428,8 @@ struct DeckView: View {
             let range = layout.visibleRange(from: position, to: position, count: tabs.count)
             let slots = slots(tabs)
             let hit = layout.card(
-                at: value.location, activeIndex: activeIndex, position: position, progress: driver.progress,
-                olderProgress: driver.olderProgress, in: range, slot: { slots[$0] })
+                at: value.location, activeIndex: activeIndex, position: position, last: CGFloat(tabs.count - 1),
+                progress: driver.progress, olderProgress: driver.olderProgress, in: range, slot: { slots[$0] })
             let index = hit ?? activeIndex
             zoom(to: CGFloat(index))
             env.showTab(tabs[index].id, via: hit == nil ? .deckBackgroundTap : .deckCardTap)
@@ -592,6 +595,7 @@ private struct DeckCard<Content: View>: View {
     let index: Int
     let activeIndex: Int
     let isLast: Bool
+    let last: CGFloat
     let layout: CardLayout
     let header: CardHeader
     let coverImage: UIImage?
@@ -607,7 +611,7 @@ private struct DeckCard<Content: View>: View {
         let isUnrevealed = controller.map { $0.tabID == tabID && !$0.isRevealable } ?? false
         let cover = covers.cover(for: tabID)
         let placement = driver.placement(
-            index: index, activeIndex: activeIndex, isLast: isLast, layout: layout, header: header,
+            index: index, activeIndex: activeIndex, isLast: isLast, last: last, layout: layout, header: header,
             coverImage: coverImage,
             coverFill: DeckView.coverFill(tint: tint, waitsToCut: cover.waitsToCut, isPrivate: isPrivate),
             isUnrevealed: isUnrevealed,

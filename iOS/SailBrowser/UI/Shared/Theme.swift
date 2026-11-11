@@ -496,16 +496,27 @@ enum Theme {
         static let tabStackFlickShapeSlow: CGFloat = 0.15
         static let tabStackFlickShapeFastShare: CGFloat = 0.6
 
-        static let cardHeightFraction: CGFloat = 0.65
-        static let cardTopFraction: CGFloat = 0.188
+        // Arc's deck on a 430 x 932 phone: the card 611 pt tall from 173 pt down, the first older card 74 pt of it
+        // showing left of the focused one.
+        static let cardHeightFraction: CGFloat = 0.656
+        static let cardTopFraction: CGFloat = 0.185
         static let focusedLeftFraction: CGFloat = 0.205
         static let rightStepFraction: CGFloat = 0.80
-        static let leftFirstStepFraction: CGFloat = 0.237
+        static let leftFirstStepFraction: CGFloat = 0.255
         static let leftStepFraction: CGFloat = 0.039
+        // At its end the deck slides the newest card from the focused slot to the screen's centre, as Arc's does; the
+        // older cards follow this share of the slide (Arc's first older card moves 6 pt of the newest card's 24).
+        static let deckEndOlderShare: CGFloat = 0.27
         static let olderDepthScales: [CGFloat] = [0.98, 0.93]
         static let cardPlaceholderFavicon: CGFloat = 40
+        // The header's end short of the next card's left edge.
         nonisolated static let cardHeaderGap: CGFloat = 10
         static let cardHeaderHeight: CGFloat = 24
+        // Arc's header: its favicon 18 pt in from the card's left edge, its title 6 pt after the favicon, and its
+        // favicon's centre 18 pt above the card's top (the header's bottom 6 pt above it).
+        nonisolated static let cardHeaderInset: CGFloat = 18
+        static let cardHeaderSpacing: CGFloat = 6
+        static let cardHeaderAbove: CGFloat = 6
         nonisolated static let cardHeaderFavicon: CGFloat = 20
         static let cardHeaderFaviconCorner: CGFloat = 4
         static let missingFaviconCorner: CGFloat = 5
@@ -679,36 +690,48 @@ enum Theme {
     }
 
     enum Typography {
+        // The chrome's text follows the user's text size from its measured points (ScaledFont), up to the largest
+        // size before the accessibility sizes, as Arc's search field and rows do: at 80% the 20 pt field is Title 3's
+        // 17 pt. The field, rows and labels of each place scale by one text style, so they keep their proportions.
+        static let searchField = ScaledFont(size: 20, weight: .medium, style: .title3)
+        static let privateFieldLabel = ScaledFont(size: 13, style: .footnote)
+        static let suggestionTitle = ScaledFont(size: 17, weight: .medium, style: .body)
+        static let suggestionSubtitle = ScaledFont(size: 13, style: .footnote)
+        static let recentRemoveLabel = ScaledFont(size: 13, weight: .medium, style: .footnote)
+        static let navPillURL = ScaledFont(size: 15, weight: .medium, style: .subheadline)
+        // The label's metrics place it under the tile by its cap top and baseline.
+        static let menuTileLabel = ScaledFont(size: 11, weight: .medium, style: .caption2)
+        static let menuRow = ScaledFont(size: 16, weight: .medium, style: .callout)
+        static let menuRowIcon = ScaledFont(size: 18, style: .callout)
+        static let menuFooter = ScaledFont(size: 15, style: .subheadline)
+        static let menuFooterCount = ScaledFont(size: 15, weight: .bold, style: .subheadline)
+        // The prompt's sizes are the error page's, and scale by the same styles.
+        static let permissionGlyph = ScaledFont(size: 34, style: .largeTitle)
+        static let permissionTitle = ScaledFont(size: 20, weight: .semibold, style: .title3)
+        static let permissionButton = ScaledFont(size: 17, weight: .semibold, style: .body)
+        // The summary card's title, beside its Done and summary in the system's Body.
+        static let summaryTitle = ScaledFont(size: 15, weight: .semibold, style: .subheadline)
+        // The tab switcher's text keeps its points at every text size, as Arc's does: Arc's title is 12 pt, and the pin
+        // and the private line keep their size against it.
+        static let cardHeaderPin = Font.system(size: 9)
+        static let cardHeaderTitle = Font.system(size: 12, weight: .semibold)
+        static let cardHeaderSubtitle = Font.system(size: 9)
+        static let emptyDeckLabel = Font.system(size: 17, weight: .semibold)
+        // Glyphs that are controls keep their points, as the system's toolbar and tab bar glyphs do: each fills a
+        // fixed circle, pill, tile or stepper. So do a suggestion's glyph, which stands in for a 20 pt favicon, and the
+        // private band's label, which sits under the island like the status bar's text.
         static let barPlusGlyph = Font.system(size: 20, weight: .semibold)
         static let barChevronGlyph = Font.system(size: 17, weight: .semibold)
-        static let cardHeaderPin = Font.system(size: 11)
-        static let cardHeaderTitle = Font.system(size: 15, weight: .semibold)
-        static let emptyDeckLabel = Font.system(size: 17, weight: .semibold)
-        static let searchFieldUIFont = UIFont.systemFont(ofSize: 20, weight: .medium)
         static let searchClearUIFont = UIFont.systemFont(ofSize: 18.4, weight: .medium)
         static let privateToggleUIFont = UIFont.systemFont(ofSize: 17, weight: .medium)
-        static let privateFieldLabelUIFont = UIFont.systemFont(ofSize: 13)
         static let privateBandLabelUIFont = UIFont.systemFont(ofSize: 12.5, weight: .semibold)
-        static let cardHeaderSubtitle = Font.system(size: 11.5)
-        static let suggestionTitle = Font.system(size: 17, weight: .medium)
         static let suggestionSymbol = Font.system(size: 16)
-        static let suggestionSubtitle = Font.system(size: 13)
-        static let recentRemoveLabel = Font.system(size: 13, weight: .medium)
-        static let navPillURL = Font.system(size: 15, weight: .medium)
-        static let navPillURLUIFont = UIFont.systemFont(ofSize: 15, weight: .medium)
         static let navPillGlyph = Font.system(size: 15, weight: .medium)
         static let menuTileIcon = Font.system(size: 25, weight: .light)
-        // The label's metrics place it under the tile by its cap top and baseline.
-        static let menuTileLabelUIFont = UIFont.systemFont(ofSize: 11, weight: .medium)
-        static let menuTileLabel = Font(menuTileLabelUIFont)
-        static let menuRow = Font.system(size: 16, weight: .medium)
-        static let menuRowIcon = Font.system(size: 18)
         static let menuStepperGlyph = Font.system(size: 15)
         static let menuChevronUIFont = UIFont.systemFont(ofSize: 15, weight: .medium)
-        static let menuFooter = Font.system(size: 15)
-        static let menuFooterCount = Font.system(size: 15, weight: .bold)
         // The sheets follow Dynamic Type beside their system rows: the text styles whose default sizes are the
-        // measured 16, 13 and 17 points (DynamicTypeTests).
+        // measured 16, 13 and 17 points.
         static let archiveTitle = Font.system(.callout)
         static let archiveDetail = Font.system(.footnote)
         static let macTabsSpaceTitle = Font.system(.title2, weight: .bold)
@@ -717,13 +740,12 @@ enum Theme {
         static let downloadTitle = Font.system(.callout)
         static let downloadDetail = Font.system(.footnote)
         static let settingsButton = Font.system(.body)
+        // In the colored square, which keeps the system Settings app's size.
         static let settingsIconGlyph = Font.system(size: 15, weight: .semibold)
-        static let permissionGlyph = Font.system(size: 34, weight: .regular)
-        static let permissionTitle = Font.system(size: 20, weight: .semibold)
-        static let permissionButton = Font.system(size: 17, weight: .semibold)
         // The reader's type in the system serif, substituted into reader.css; the title at the platform's Title 1 size.
-        static let readerBody = WebFont(family: "ui-serif", size: 19, weight: 400)
-        static let readerTitle = WebFont(family: "ui-serif", size: 28, weight: 700)
+        // Both follow the user's text size by their styles over the whole range, as the error page does.
+        static let readerBody = WebFont(family: "ui-serif", size: 19, weight: 400, style: .body)
+        static let readerTitle = WebFont(family: "ui-serif", size: 28, weight: 700, style: .title1)
     }
 
     // The page folds like paper over its summary card.
@@ -873,7 +895,7 @@ enum Theme {
         static let errorBackgroundPrivate = Palette.privateSubmitCover
         static let errorInk = UIColor.white
         // The permission prompt's point sizes at the default text size, scaled with the text styles of those sizes: the
-        // one screen a user meets when something is wrong reads at any size (DynamicTypeTests).
+        // one screen a user meets when something is wrong reads at any size.
         static let errorGlyphStyle = UIFont.TextStyle.largeTitle
         static let errorTitleFont = UIFontMetrics(forTextStyle: .title3)
             .scaledFont(for: .systemFont(ofSize: 20, weight: .semibold))
@@ -939,9 +961,81 @@ enum Theme {
     }
 }
 
-// A font as a stylesheet names it, for the pages the app writes itself.
+// A font as a stylesheet names it, for the pages the app writes itself. Its size is at the default text size; the
+// text style scales it to the user's.
 nonisolated struct WebFont: Equatable, Sendable {
     let family: String
     let size: CGFloat
     let weight: Int
+    let style: UIFont.TextStyle
+}
+
+// A system font at its measured size at the default text size (Large) that grows and shrinks with the user's text size
+// in step with the system's own text of its style, up to `largest`. Past it, in the accessibility sizes, the chrome's
+// fixed bar, rows and pills would clip the text, so it holds there. `.font(_:)` takes one in SwiftUI; UIKit text takes
+// `uiFont(compatibleWith:)` again when the text size changes.
+// The step is the style's own (17 to 23 points for Body), not UIFontMetrics', which rounds to the pixel at the default
+// size and takes some styles well past their own text.
+struct ScaledFont {
+    static let largest = DynamicTypeSize.xxxLarge
+
+    let size: CGFloat
+    var weight = UIFont.Weight.regular
+    let style: UIFont.TextStyle
+
+    // The system's text of a style at a text size over its size at the default.
+    static func growth(of style: UIFont.TextStyle, at category: UIContentSizeCategory) -> CGFloat {
+        guard category != .unspecified else { return 1 }
+        func pointSize(_ category: UIContentSizeCategory) -> CGFloat {
+            let traits = UITraitCollection(preferredContentSizeCategory: category)
+            return UIFont.preferredFont(forTextStyle: style, compatibleWith: traits).pointSize
+        }
+        return pointSize(category) / pointSize(.large)
+    }
+
+    func pointSize(at dynamicTypeSize: DynamicTypeSize) -> CGFloat {
+        size * Self.growth(of: style, at: UIContentSizeCategory(min(dynamicTypeSize, Self.largest)))
+    }
+
+    func font(at dynamicTypeSize: DynamicTypeSize) -> Font {
+        .system(size: pointSize(at: dynamicTypeSize), weight: fontWeight)
+    }
+
+    func uiFont(at dynamicTypeSize: DynamicTypeSize) -> UIFont {
+        .systemFont(ofSize: pointSize(at: dynamicTypeSize), weight: weight)
+    }
+
+    func uiFont(compatibleWith traits: UITraitCollection) -> UIFont {
+        uiFont(at: DynamicTypeSize(traits.preferredContentSizeCategory) ?? .large)
+    }
+
+    private var fontWeight: Font.Weight {
+        switch weight {
+        case .ultraLight: .ultraLight
+        case .thin: .thin
+        case .light: .light
+        case .medium: .medium
+        case .semibold: .semibold
+        case .bold: .bold
+        case .heavy: .heavy
+        case .black: .black
+        default: .regular
+        }
+    }
+}
+
+extension View {
+    // The font at the environment's text size, so a view under a narrower `dynamicTypeSize` follows that.
+    func font(_ font: ScaledFont) -> some View {
+        modifier(ScaledFontModifier(font: font))
+    }
+}
+
+private struct ScaledFontModifier: ViewModifier {
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
+    let font: ScaledFont
+
+    func body(content: Content) -> some View {
+        content.font(font.font(at: dynamicTypeSize))
+    }
 }

@@ -18,6 +18,7 @@ struct TrackerFooter: View {
         let content: Content
     }
 
+    @Environment(\.dynamicTypeSize) private var dynamicTypeSize
     let shown: Shown
     let fill: Color
     let open: () -> Void
@@ -37,7 +38,7 @@ struct TrackerFooter: View {
     @ViewBuilder private var label: some View {
         switch shown.content {
         case .scrubbed(let count):
-            let number = Text(count, format: .number).font(Theme.Typography.menuFooterCount)
+            let number = Text(count, format: .number).font(Theme.Typography.menuFooterCount.font(at: dynamicTypeSize))
             Text("\(number) \(count == 1 ? "tracker" : "trackers") blocked")
         case .allowed:
             Text("Trackers allowed")

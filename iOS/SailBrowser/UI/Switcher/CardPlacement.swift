@@ -55,6 +55,8 @@ struct CardPlacement<Header: View>: ViewModifier {
     let index: Int
     let activeIndex: Int
     let isLast: Bool
+    // The newest card's slot, where the deck ends (CardLayout.endSlide).
+    let last: CGFloat
     let layout: CardLayout
     let header: Header
     let coverImage: UIImage?
@@ -68,7 +70,7 @@ struct CardPlacement<Header: View>: ViewModifier {
         progress: CGFloat, olderProgress: CGFloat, pair: DeckDriver.PagePair?, flick: DeckDriver.Flick?,
         position: CGFloat,
         lift: CGFloat, slot: CGFloat,
-        index: Int, activeIndex: Int, isLast: Bool,
+        index: Int, activeIndex: Int, isLast: Bool, last: CGFloat,
         layout: CardLayout, header: Header, coverImage: UIImage?, coverFill: Color, isUnrevealed: Bool,
         cover: CardCover, tabID: UUID, isPrivate: Bool = false
     ) {
@@ -82,6 +84,7 @@ struct CardPlacement<Header: View>: ViewModifier {
         self.index = index
         self.activeIndex = activeIndex
         self.isLast = isLast
+        self.last = last
         self.layout = layout
         self.header = header
         self.coverImage = coverImage
@@ -108,7 +111,7 @@ struct CardPlacement<Header: View>: ViewModifier {
             return pairTransform(pair)
         }
         return layout.transform(
-            slot: slot, isActive: index == activeIndex, activeIndex: activeIndex, position: position,
+            slot: slot, isActive: index == activeIndex, activeIndex: activeIndex, position: position, last: last,
             progress: progress, olderProgress: olderProgress)
     }
 
@@ -191,7 +194,7 @@ struct CardPlacement<Header: View>: ViewModifier {
         let outer = isActive ? unplaced : g
         let clip = g.clip
         let inverse = 1 / layout.restScale
-        let room = layout.header(slot: slot, position: position, isLast: isLast)
+        let room = layout.header(slot: slot, position: position, last: last, isLast: isLast)
         #if DEBUG
         if isActive {
             DebugProfiler.markUpdate(progress: progress)
@@ -211,9 +214,10 @@ struct CardPlacement<Header: View>: ViewModifier {
                 .overlay(alignment: .topLeading) {
                     header
                         .environment(\.cardTitleOpacity, t.titleOpacity)
+                        .padding(.leading, Theme.Metrics.cardHeaderInset)
                         .frame(width: room.width, height: Theme.Metrics.cardHeaderHeight, alignment: .leading)
                         .scaleEffect(inverse, anchor: .bottomLeading)
-                        .offset(y: -(Theme.Metrics.cardHeaderHeight + Theme.Metrics.cardHeaderGap * inverse))
+                        .offset(y: -(Theme.Metrics.cardHeaderHeight + Theme.Metrics.cardHeaderAbove * inverse))
                         .opacity(t.headerOpacity * room.opacity)
                 }
                 .placed(inner)

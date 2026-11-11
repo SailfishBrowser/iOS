@@ -32,6 +32,14 @@ nonisolated struct CardLayout: Sendable {
     private let focusedLeft: CGFloat
     private let leftFirstStep: CGFloat
     private let leftStep: CGFloat
+    // The deck's slide at its end, from the newest card at the focused slot to the newest card centred, and the share
+    // of it the older cards follow. A window whose focused slot is already right of centre does not slide.
+    private let endShift: CGFloat
+    private let olderEndShare: CGFloat
+    private let headerInset: CGFloat
+    // The page's band above the safe area, cut from a card's top as Arc's deck does, so a card starts at the page's
+    // content instead of the white or coloured strip behind the status bar. In the page's points.
+    let topCut: CGFloat
     private let depthScales: [CGFloat]
     private let displayCorner: CGFloat
     private let cardCorner: CGFloat
@@ -53,8 +61,9 @@ nonisolated struct CardLayout: Sendable {
     private let flickShapeSlow: CGFloat
     private let flickShapeFastShare: CGFloat
 
-    @MainActor init(screen: CGSize, barHeight: CGFloat = Theme.Metrics.barTotalHeight) {
+    @MainActor init(screen: CGSize, topCut: CGFloat = 0, barHeight: CGFloat = Theme.Metrics.barTotalHeight) {
         self.screen = screen
+        self.topCut = topCut
         barTop = screen.height - barHeight
         let widthFraction = screen.width >= Theme.Metrics.wideDeckWidth
             ? Theme.Metrics.wideCardWidthFraction : Theme.Metrics.cardWidthFraction
@@ -67,6 +76,9 @@ nonisolated struct CardLayout: Sendable {
         focusedLeft = Theme.Metrics.focusedLeftFraction * screen.width
         leftFirstStep = Theme.Metrics.leftFirstStepFraction * width
         leftStep = Theme.Metrics.leftStepFraction * width
+        endShift = max(0, focusedLeft - (screen.width - width) / 2)
+        olderEndShare = Theme.Metrics.deckEndOlderShare
+        headerInset = Theme.Metrics.cardHeaderInset
         depthScales = Theme.Metrics.olderDepthScales
         slotCenter = CGPoint(
             x: focusedLeft + width / 2, y: topFraction * screen.height + cardSize.height / 2)
@@ -227,27 +239,38 @@ nonisolated struct CardLayout: Sendable {
         CGFloat(max(activeIndex - 1, 0))
     }
 
-    func transform(slot: CGFloat, isActive: Bool, activeIndex: Int, position: CGFloat, progress: CGFloat)
-        -> CardTransform
-    {
-        transform(
-            slot: slot, isActive: isActive, activeIndex: activeIndex, position: position, progress: progress,
-            olderProgress: progress)
+    // How far the deck has slid toward its end: none while the newest card is a stride or more right of the focused
+    // slot, all of it once the newest card rests there, so the end of the deck centres the newest card. `last` is the
+    // newest card's slot; a lone card is centred.
+    func endSlide(position: CGFloat, last: CGFloat) -> CGFloat {
+        endShift * min(max(position - (last - 1), 0), 1)
     }
 
     func transform(
-        slot: CGFloat, isActive: Bool, activeIndex: Int, position: CGFloat, progress: CGFloat, olderProgress: CGFloat
+        slot: CGFloat, isActive: Bool, activeIndex: Int, position: CGFloat, last: CGFloat, progress: CGFloat
+    ) -> CardTransform {
+        transform(
+            slot: slot, isActive: isActive, activeIndex: activeIndex, position: position, last: last,
+            progress: progress, olderProgress: progress)
+    }
+
+    func transform(
+        slot: CGFloat, isActive: Bool, activeIndex: Int, position: CGFloat, last: CGFloat, progress: CGFloat,
+        olderProgress: CGFloat
     ) -> CardTransform {
         let t = !isActive && slot < CGFloat(activeIndex) ? olderProgress : progress
         let p = slot - position
-        let rest = rest(p)
+        let slide = endSlide(position: position, last: last)
+        let rest = rest(p, slide: slide)
         var transform = CardTransform(
             offset: rest.offset, scale: rest.scale, clipHeight: rest.clipHeight, rotation: .zero,
             corner: t == 0 ? 0 : lerp(displayCorner, cardCorner, t), opacity: 1, headerOpacity: t,
             titleOpacity: max(0, 1 - abs(p)), dim: rest.dim * t,
-            zIndex: isActive && t < 1 ? Self.zoomingZIndex : Double(slot))
+            zIndex: isActive && t < 1 ? Self.zoomingZIndex : Double(slot), clipTop: rest.clipTop)
         if isActive {
+            // The status band is cut as the page becomes a card, so the full page shows at the zoom's start.
             transform.scale = lerp(1, rest.scale, t)
+            transform.clipTop = rest.clipTop * t
             transform.clipHeight = lerp(screen.height, rest.clipHeight, t)
             transform.offset = CGSize(width: rest.offset.width * t, height: rest.offset.height * t)
         } else if slot < CGFloat(activeIndex) {
@@ -256,19 +279,24 @@ nonisolated struct CardLayout: Sendable {
             let center = CGPoint(x: lerp(button.midX, rest.center.x, t), y: lerp(button.midY, rest.center.y, t))
             let tilt = Int(slot.rounded()) == activeIndex - 1 ? -buttonTilt : buttonTilt
             transform.scale = restScale * widthScale
-            transform.clipHeight = cardSize.height * widthScale
-            transform.offset = offset(visibleCenter: center, scale: transform.scale, clipHeight: transform.clipHeight)
+            transform.clipTop = topCut * transform.scale
+            transform.clipHeight = transform.clipTop + cardSize.height * widthScale
+            transform.offset = offset(
+                visibleCenter: center, scale: transform.scale, clipTop: transform.clipTop,
+                clipHeight: transform.clipHeight)
             transform.rotation = .degrees(tilt * Double(1 - t))
             transform.corner = lerp(buttonCorner, cardCorner, t)
             transform.opacity = min(1, t / Theme.Metrics.deckOlderFadeIn)
         } else {
-            let active = self.rest(CGFloat(activeIndex) - position)
+            let active = self.rest(CGFloat(activeIndex) - position, slide: slide)
             let zoom = lerp(1 / active.scale, 1, t)
             transform.offset = CGSize(
                 width: active.offset.width * t + zoom * (rest.offset.width - active.offset.width),
                 height: active.offset.height * t + zoom * (rest.offset.height - active.offset.height))
+            // A newer card is cut as the active card is, so their tops stay level through the zoom.
             transform.scale = zoom * rest.scale
-            transform.clipHeight = zoom * rest.clipHeight
+            transform.clipTop = rest.clipTop * t
+            transform.clipHeight = transform.clipTop + zoom * (rest.clipHeight - rest.clipTop)
             transform.opacity = t == 0 ? 0 : 1
         }
         return transform
@@ -294,20 +322,23 @@ nonisolated struct CardLayout: Sendable {
         return r
     }
 
-    // A card's header sits on its drawn left edge and only the strip up to the next card's left edge shows, so the header
-    // ends a header gap short of the next card's header and truncates there. It fades out as that strip narrows from
-    // two favicons wide to one, so a card tucked into the stack shows no header instead of a sliver of favicon under
-    // its neighbour's. The width is in the header's own points, before the card's scale.
-    func header(slot: CGFloat, position: CGFloat, isLast: Bool) -> (width: CGFloat, opacity: CGFloat) {
+    // A card's header starts a header inset in from its drawn left edge and only the strip up to the next card's left
+    // edge shows, so the header ends a header gap short of the next card's header and truncates there. It fades out
+    // as the strip past the inset narrows from two favicons wide to one, so a card tucked into the stack shows no
+    // header instead of a sliver of favicon under its neighbour's. The width is in the header's own points, before
+    // the card's scale, and includes the inset.
+    func header(slot: CGFloat, position: CGFloat, last: CGFloat, isLast: Bool) -> (width: CGFloat, opacity: CGFloat) {
+        let slide = endSlide(position: position, last: last)
         func left(_ p: CGFloat) -> CGFloat {
-            let card = rest(p)
+            let card = rest(p, slide: slide)
             return card.center.x - cardSize.width * card.depth / 2
         }
         let p = slot - position
-        let depth = rest(p).depth
+        let depth = rest(p, slide: slide).depth
         let width = cardSize.width * depth
         let room = isLast ? width : min(left(p + 1) - left(p) - Theme.Metrics.cardHeaderGap, width)
-        return (max(room, 0) / depth, min(max(room / (Theme.Metrics.cardHeaderFavicon * depth) - 1, 0), 1))
+        let shown = room - headerInset * depth
+        return (max(room, 0) / depth, min(max(shown / (Theme.Metrics.cardHeaderFavicon * depth) - 1, 0), 1))
     }
 
     static func span(from start: CGFloat, to end: CGFloat) -> ClosedRange<Int> {
@@ -344,16 +375,16 @@ nonisolated struct CardLayout: Sendable {
 
     // The topmost card drawn under the point at this zoom, so a tap mid-zoom takes the card the finger is on.
     func card(
-        at point: CGPoint, activeIndex: Int, position: CGFloat, progress: CGFloat, olderProgress: CGFloat,
-        in range: ClosedRange<Int>, slot: (Int) -> CGFloat
+        at point: CGPoint, activeIndex: Int, position: CGFloat, last: CGFloat, progress: CGFloat,
+        olderProgress: CGFloat, in range: ClosedRange<Int>, slot: (Int) -> CGFloat
     ) -> Int? {
         let hits = range.compactMap { index -> (index: Int, zIndex: Double)? in
             let transform = transform(
                 slot: slot(index), isActive: index == activeIndex, activeIndex: activeIndex, position: position,
-                progress: progress, olderProgress: olderProgress)
+                last: last, progress: progress, olderProgress: olderProgress)
             let top = screen.height / 2 + transform.offset.height - screen.height * transform.scale / 2
             let inside = abs(point.x - screen.width / 2 - transform.offset.width) <= screen.width * transform.scale / 2
-                && point.y >= top && point.y <= top + transform.clipHeight
+                && point.y >= top + transform.clipTop && point.y <= top + transform.clipHeight
             return inside ? (index, transform.zIndex) : nil
         }
         return hits.max { $0.zIndex < $1.zIndex }?.index
@@ -436,13 +467,18 @@ nonisolated struct CardLayout: Sendable {
         return kept + current.filter { !known.contains($0) }
     }
 
-    private func rest(_ p: CGFloat) -> (
-        center: CGPoint, depth: CGFloat, offset: CGSize, scale: CGFloat, clipHeight: CGFloat, dim: CGFloat
+    // A card's place `p` strides from the position, the deck slid `slide` toward its end (endSlide). The focused card
+    // and the newer ones take the whole slide; an older card takes less of it the further it is tucked in, down to
+    // the older cards' share, so the stack tightens toward the left edge instead of leaving the screen.
+    private func rest(_ p: CGFloat, slide: CGFloat) -> (
+        center: CGPoint, depth: CGFloat, offset: CGSize, scale: CGFloat, clipTop: CGFloat, clipHeight: CGFloat,
+        dim: CGFloat
     ) {
+        let share = p >= 0 ? 1 : p >= -1 ? 1 + (1 - olderEndShare) * p : olderEndShare
         let left =
-            p >= 0
-            ? focusedLeft + p * stride
-            : focusedLeft + max(p, -1) * leftFirstStep + min(p + 1, 0) * leftStep
+            (p >= 0
+                ? focusedLeft + p * stride
+                : focusedLeft + max(p, -1) * leftFirstStep + min(p + 1, 0) * leftStep) - slide * share
         let depth =
             p >= 0
             ? 1
@@ -451,17 +487,21 @@ nonisolated struct CardLayout: Sendable {
                 : max(depthScales[1], depthScales[0] + (depthScales[0] - depthScales[1]) * (p + 1))
         let center = CGPoint(x: left + cardSize.width / 2, y: slotCenter.y)
         let scale = restScale * depth
-        let clipHeight = cardSize.height * depth
+        let clipTop = topCut * scale
+        let clipHeight = clipTop + cardSize.height * depth
         return (
-            center, depth, offset(visibleCenter: center, scale: scale, clipHeight: clipHeight), scale, clipHeight,
-            min(Theme.Metrics.deckLeftMaxDim, max(0, -Theme.Metrics.deckLeftDimStep * p))
+            center, depth, offset(visibleCenter: center, scale: scale, clipTop: clipTop, clipHeight: clipHeight), scale,
+            clipTop, clipHeight, min(Theme.Metrics.deckLeftMaxDim, max(0, -Theme.Metrics.deckLeftDimStep * p))
         )
     }
 
-    private func offset(visibleCenter center: CGPoint, scale: CGFloat, clipHeight: CGFloat) -> CGSize {
+    // The offset that puts the drawn part of a card, from its clip's top to its clip's bottom, around the centre.
+    private func offset(visibleCenter center: CGPoint, scale: CGFloat, clipTop: CGFloat = 0, clipHeight: CGFloat)
+        -> CGSize
+    {
         CGSize(
             width: center.x - screen.width / 2,
-            height: center.y - clipHeight / 2 + screen.height * scale / 2 - screen.height / 2)
+            height: center.y - (clipTop + clipHeight) / 2 + screen.height * scale / 2 - screen.height / 2)
     }
 
     private func lerp(_ a: CGFloat, _ b: CGFloat, _ t: CGFloat) -> CGFloat {
@@ -483,15 +523,18 @@ nonisolated struct CardLayout: Sendable {
     // The active card's largest corner displacement between the screen and its deck slot: the zoom's progress moves
     // its corners linearly, so one unit of progress moves a point this far at most.
     var zoomPoints: CGFloat {
-        let slot = rest(0)
-        let width = screen.width * slot.scale
-        let left = screen.width / 2 + slot.offset.width - width / 2
-        let top = screen.height / 2 + slot.offset.height - screen.height * slot.scale / 2
-        let corners = [
-            (left, top), (left + width, top), (left, top + slot.clipHeight), (left + width, top + slot.clipHeight),
-        ]
-        let full = [(0, 0), (screen.width, 0), (0, screen.height), (screen.width, screen.height)]
-        return zip(corners, full).map { hypot($0.0 - $1.0, $0.1 - $1.1) }.max()!
+        [0, endShift].map { slide in
+            let slot = rest(0, slide: slide)
+            let width = screen.width * slot.scale
+            let left = screen.width / 2 + slot.offset.width - width / 2
+            let top = screen.height / 2 + slot.offset.height - screen.height * slot.scale / 2 + slot.clipTop
+            let corners = [
+                (left, top), (left + width, top), (left, top - slot.clipTop + slot.clipHeight),
+                (left + width, top - slot.clipTop + slot.clipHeight),
+            ]
+            let full = [(0, 0), (screen.width, 0), (0, screen.height), (screen.width, screen.height)]
+            return zip(corners, full).map { hypot($0.0 - $1.0, $0.1 - $1.1) }.max()!
+        }.max()!
     }
 }
 

@@ -8,7 +8,7 @@ struct CardHeader: View {
     let tab: Tab
 
     var body: some View {
-        HStack {
+        HStack(spacing: Theme.Metrics.cardHeaderSpacing) {
             if tab.isPinned {
                 Image(systemName: "pin.fill")
                     .font(Theme.Typography.cardHeaderPin)

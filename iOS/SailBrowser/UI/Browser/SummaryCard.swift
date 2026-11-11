@@ -26,7 +26,7 @@ struct SummaryCard: View {
         VStack(alignment: .leading, spacing: Theme.Fold.cardSpacing) {
             HStack(alignment: .firstTextBaseline, spacing: Theme.Fold.cardSpacing) {
                 Text(title)
-                    .font(Theme.Typography.cardHeaderTitle)
+                    .font(Theme.Typography.summaryTitle)
                     .frame(maxWidth: .infinity, alignment: .leading)
                 Button("Done", action: done)
                     .buttonStyle(.plain)

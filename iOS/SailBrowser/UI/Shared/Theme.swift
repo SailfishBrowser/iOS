@@ -496,16 +496,27 @@ enum Theme {
         static let tabStackFlickShapeSlow: CGFloat = 0.15
         static let tabStackFlickShapeFastShare: CGFloat = 0.6
 
-        static let cardHeightFraction: CGFloat = 0.65
-        static let cardTopFraction: CGFloat = 0.188
+        // Arc's deck on a 430 x 932 phone: the card 611 pt tall from 173 pt down, the first older card 74 pt of it
+        // showing left of the focused one.
+        static let cardHeightFraction: CGFloat = 0.656
+        static let cardTopFraction: CGFloat = 0.185
         static let focusedLeftFraction: CGFloat = 0.205
         static let rightStepFraction: CGFloat = 0.80
-        static let leftFirstStepFraction: CGFloat = 0.237
+        static let leftFirstStepFraction: CGFloat = 0.255
         static let leftStepFraction: CGFloat = 0.039
+        // At its end the deck slides the newest card from the focused slot to the screen's centre, as Arc's does; the
+        // older cards follow this share of the slide (Arc's first older card moves 6 pt of the newest card's 24).
+        static let deckEndOlderShare: CGFloat = 0.27
         static let olderDepthScales: [CGFloat] = [0.98, 0.93]
         static let cardPlaceholderFavicon: CGFloat = 40
+        // The header's end short of the next card's left edge.
         nonisolated static let cardHeaderGap: CGFloat = 10
         static let cardHeaderHeight: CGFloat = 24
+        // Arc's header: its favicon 18 pt in from the card's left edge, its title 6 pt after the favicon, and its
+        // favicon's centre 18 pt above the card's top (the header's bottom 6 pt above it).
+        nonisolated static let cardHeaderInset: CGFloat = 18
+        static let cardHeaderSpacing: CGFloat = 6
+        static let cardHeaderAbove: CGFloat = 6
         nonisolated static let cardHeaderFavicon: CGFloat = 20
         static let cardHeaderFaviconCorner: CGFloat = 4
         static let missingFaviconCorner: CGFloat = 5
@@ -700,10 +711,11 @@ enum Theme {
         static let permissionButton = ScaledFont(size: 17, weight: .semibold, style: .body)
         // The summary card's title, beside its Done and summary in the system's Body.
         static let summaryTitle = ScaledFont(size: 15, weight: .semibold, style: .subheadline)
-        // The tab switcher's text keeps its points at every text size, as Arc's does.
-        static let cardHeaderPin = Font.system(size: 11)
-        static let cardHeaderTitle = Font.system(size: 15, weight: .semibold)
-        static let cardHeaderSubtitle = Font.system(size: 11.5)
+        // The tab switcher's text keeps its points at every text size, as Arc's does: Arc's title is 12 pt, and the pin
+        // and the private line keep their size against it.
+        static let cardHeaderPin = Font.system(size: 9)
+        static let cardHeaderTitle = Font.system(size: 12, weight: .semibold)
+        static let cardHeaderSubtitle = Font.system(size: 9)
         static let emptyDeckLabel = Font.system(size: 17, weight: .semibold)
         // Glyphs that are controls keep their points, as the system's toolbar and tab bar glyphs do: each fills a
         // fixed circle, pill, tile or stepper. So do a suggestion's glyph, which stands in for a 20 pt favicon, and the

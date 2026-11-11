@@ -11,7 +11,7 @@ struct BottomBar: View {
         let style = BarStyle.browsing(
             on: controller.barTint, in: colorScheme, isPrivate: env.pool.isPrivate(controller.tabID))
         HStack {
-            TabStackButton(foreground: style.glyph)
+            TabStackButton(foreground: style.glyph, fill: style.controlFill)
             Spacer()
             HStack(spacing: Theme.Translate.barGap) {
                 // The slot stays reserved so the fade is the only change: a child inserted into a growing stack

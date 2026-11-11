@@ -473,6 +473,11 @@ enum Theme {
         static let tabStackThumbnailCorner: CGFloat = 4
         static let tabStackTilt: Double = 7
         static let tabStackButtonSize = CGSize(width: 44, height: 40)
+        // The stack with no other tab open, as Arc's: two blank cards in the bar's control fill and the stack's own
+        // places, a little shorter than its pictures and the back one turned further (26 x 29 pt, +9 and -15 degrees on
+        // a 430 x 932 phone).
+        static let tabStackPlaceholderSize = CGSize(width: 26, height: 29)
+        static let tabStackPlaceholderTilts: [Double] = [9, -15]
         static let tabStackButtonCenterX: CGFloat = 46
         // The tab stack flick:
         // the live page shrinks to the arm scale in 12 to 15 frames with its bottom-left pinned this far in from the

@@ -78,7 +78,7 @@ struct SearchBarCopies: View {
             if atDeck {
                 circle("archivebox")
             } else {
-                TabStackThumbnails(foreground: look.style.glyph)
+                TabStackThumbnails(foreground: look.style.glyph, fill: look.style.controlFill)
                     .frame(width: Theme.Metrics.tabStackButtonSize.width, height: Theme.Metrics.tabStackButtonSize.height)
             }
             Spacer()
